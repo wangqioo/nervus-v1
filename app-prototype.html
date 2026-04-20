@@ -1,0 +1,2774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AI 助手 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+*{scrollbar-width:none}*::-webkit-scrollbar{display:none}
+
+/* ── DARK THEME (default) ── */
+:root{
+  --bg:#07070E;
+  --bg-blur:rgba(7,7,14,.88);
+  --s1:rgba(255,255,255,.04);
+  --s2:rgba(255,255,255,.07);
+  --s3:rgba(255,255,255,.12);
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.13);
+  --text:#EEEEF8;
+  --text2:rgba(238,238,248,.55);
+  --text3:rgba(238,238,248,.28);
+  --accent:#8B72FF;
+  --accent-s:rgba(139,114,255,.13);
+  --accent-g:rgba(139,114,255,.4);
+  --teal:#5EEAB5;
+  --teal-s:rgba(94,234,181,.13);
+  --orange:#FFAA5C;
+  --red:#FF6E7A;
+  --card:#13132A;
+  --PW:390px;--PH:844px;
+}
+
+/* ── LIGHT THEME ── */
+@media(prefers-color-scheme:light){
+  :root{
+    --bg:#F2F2F7;
+    --bg-blur:rgba(242,242,247,.92);
+    --s1:rgba(0,0,0,.04);
+    --s2:rgba(255,255,255,.72);
+    --s3:rgba(0,0,0,.08);
+    --border:rgba(0,0,0,.07);
+    --border2:rgba(0,0,0,.12);
+    --text:#1C1C1E;
+    --text2:rgba(28,28,30,.55);
+    --text3:rgba(28,28,30,.35);
+    --accent:#6B52F0;
+    --accent-s:rgba(107,82,240,.1);
+    --accent-g:rgba(107,82,240,.25);
+    --teal:#00C896;
+    --teal-s:rgba(0,200,150,.12);
+    --orange:#E0820A;
+    --red:#E8344A;
+    --card:#FFFFFF;
+  }
+  body{background:#D8D8E8;background-image:radial-gradient(ellipse 700px 500px at 20% 20%,rgba(107,82,240,.07) 0%,transparent 70%),radial-gradient(ellipse 500px 400px at 80% 80%,rgba(0,200,150,.06) 0%,transparent 70%)}
+  .phone{box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 9px #C8C8D8,0 0 0 10px rgba(0,0,0,.04),0 60px 120px rgba(0,0,0,.35),0 20px 40px rgba(0,0,0,.15)}
+  .phone::before,.phone::after{background:#B8B8C8}
+}
+
+/* ── BODY + PHONE ── */
+body{min-height:100vh;background:#020208;display:flex;align-items:center;justify-content:center;font-family:'PingFang SC','Outfit',-apple-system,sans-serif;overflow:hidden;background-image:radial-gradient(ellipse 800px 600px at 15% 20%,rgba(80,60,180,.18) 0%,transparent 70%),radial-gradient(ellipse 600px 500px at 85% 80%,rgba(30,140,120,.12) 0%,transparent 70%)}
+.phone{width:var(--PW);height:var(--PH);border-radius:52px;background:var(--bg);position:relative;overflow:hidden;touch-action:none;user-select:none;box-shadow:0 0 0 1px rgba(255,255,255,.15),0 0 0 9px #181828,0 0 0 10px rgba(255,255,255,.06),0 60px 120px rgba(0,0,0,.9),0 20px 40px rgba(0,0,0,.5)}
+.phone::before{content:'';position:absolute;left:-12px;top:120px;width:4px;height:60px;background:#1e1e30;border-radius:3px 0 0 3px;box-shadow:0 70px 0 #1e1e30}
+.phone::after{content:'';position:absolute;right:-12px;top:150px;width:4px;height:80px;background:#1e1e30;border-radius:0 3px 3px 0}
+.di{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:126px;height:36px;background:#000;border-radius:20px;z-index:200;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+
+/* ── VIEWPORT + PANELS ── */
+.viewport{position:absolute;inset:0;border-radius:52px;overflow:hidden}
+.panels{position:absolute;width:1170px;height:2532px;transform:translate(-390px,-844px);transition:transform .46s cubic-bezier(.32,.72,0,1);will-change:transform}
+.panel{position:absolute;width:390px;height:844px;overflow:hidden}
+#p-sense{left:390px;top:0}
+#p-chat{left:0;top:844px}
+#p-home{left:390px;top:844px}
+#p-files{left:780px;top:844px}
+#p-apps{left:390px;top:1688px}
+
+/* ── STATUS BAR ── */
+.sb{position:absolute;top:0;left:0;right:0;height:58px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 10px;z-index:50;pointer-events:none}
+.sb-time{font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.3px}
+.sb-icons{display:flex;align-items:center;gap:6px}
+.sb-icons svg{fill:var(--text);opacity:.9}
+
+/* ── GLASS CARD ── */
+.gc{background:var(--s2);border:1px solid var(--border2);border-radius:24px;padding:18px 20px;position:relative;overflow:hidden;
+  box-shadow:0 5px 0 -2px var(--s2),0 5px 0 -1px var(--border2),0 10px 0 -4px var(--s1),0 10px 0 -3px var(--border2)}
+.gc::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);pointer-events:none}
+
+/* ── HOME ── */
+.home-bg{position:absolute;inset:0;background:radial-gradient(ellipse 320px 280px at 50% 5%,rgba(139,114,255,.13) 0%,transparent 70%),radial-gradient(ellipse 400px 300px at 5% 85%,rgba(94,234,181,.07) 0%,transparent 70%),var(--bg)}
+.hc{position:absolute;inset:0;padding:66px 18px 100px;display:flex;flex-direction:column;gap:13px;overflow-y:auto}
+.ai-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ai-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 14px var(--accent-g)}
+.ai-lbl{font-size:13px;color:var(--text2);font-weight:500;letter-spacing:.2px;flex:1}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.ai-glow{position:absolute;top:-50px;right:-50px;width:160px;height:160px;background:radial-gradient(circle,var(--accent-g) 0%,transparent 70%);pointer-events:none}
+.ai-txt{font-size:15px;color:var(--text);line-height:1.65;font-weight:400}
+.stats{display:flex;gap:10px;margin-top:14px}
+.stat{flex:1;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:10px 0;text-align:center}
+.stat-n{font-family:'Outfit',sans-serif;font-size:22px;font-weight:700;color:var(--text);line-height:1;display:block;margin-bottom:3px}
+.stat-l{font-size:11px;color:var(--text3);font-weight:500}
+.qrow{display:flex;gap:12px}
+.qc{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:0;position:relative;overflow:hidden;
+  box-shadow:0 4px 0 -2px var(--s2),0 4px 0 -1px var(--border),0 8px 0 -4px var(--s1),0 8px 0 -3px var(--border2)}
+.qc-body{padding:15px 14px;will-change:transform,opacity}
+.qc-ico{font-size:22px;display:block;margin-bottom:9px}
+.qc-ttl{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:4px}
+.qc-val{font-size:13px;color:var(--text);font-weight:600;line-height:1.4}
+/* gc content wrapper */
+#gcContent{will-change:transform,opacity}
+.remind-bar{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid rgba(139,114,255,.22);border-radius:18px;padding:13px 14px}
+.remind-ico{width:38px;height:38px;border-radius:11px;flex-shrink:0;background:var(--accent-s);border:1px solid rgba(139,114,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px}
+.remind-body{flex:1}
+.remind-t{font-size:13px;color:var(--text);font-weight:600;margin-bottom:2px}
+.remind-sub{font-size:12px;color:var(--accent);font-weight:500}
+.confirm-btn{width:32px;height:32px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px var(--accent-g);transition:transform .15s}
+.confirm-btn:active{transform:scale(.9)}
+.prog-bar{height:3px;border-radius:2px;background:var(--s2);margin-top:8px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--teal));width:68%}
+
+/* ── AI ORB (voice entry) ── */
+.vbw{position:absolute;bottom:0;left:0;right:0;padding:0 20px 26px;display:flex;flex-direction:column;align-items:center;gap:11px;z-index:60;background:linear-gradient(to top,var(--bg) 52%,transparent)}
+.ai-suggests{display:flex;gap:8px;transition:opacity .3s,transform .3s}
+.ai-sug{padding:7px 14px;border-radius:20px;background:var(--s2);border:1px solid var(--border2);color:var(--text2);font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .16s;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.ai-sug:active{transform:scale(.92);background:var(--s3)}
+.orb-zone{position:relative;width:80px;height:80px;display:flex;align-items:center;justify-content:center}
+.orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--accent);animation:orb-pulse 3s ease-out infinite}
+.orb-ring:nth-child(2){animation-delay:.85s}
+.orb-ring:nth-child(3){animation-delay:1.7s}
+@keyframes orb-pulse{0%{transform:scale(.82);opacity:.75}100%{transform:scale(1.42);opacity:0}}
+.ai-orb{width:66px;height:66px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(270deg,#8B72FF,#5EEAB5,#FFAA5C,#FF6E7A,#8B72FF);background-size:400% 400%;animation:orb-gradient 6s ease infinite;box-shadow:0 0 26px rgba(139,114,255,.55),0 0 56px rgba(139,114,255,.2),inset 0 1px 0 rgba(255,255,255,.25);font-size:26px;color:#fff;display:flex;align-items:center;justify-content:center;position:relative;z-index:2;transition:transform .15s,box-shadow .15s}
+.ai-orb:active{transform:scale(.88);box-shadow:0 0 14px rgba(139,114,255,.4)}
+@keyframes orb-gradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.orb-hint{font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.35px}
+
+/* ── CHAT ── */
+.chat-bg{position:absolute;inset:0;background:radial-gradient(ellipse 280px 220px at 85% 12%,rgba(94,234,181,.09) 0%,transparent 70%),var(--bg)}
+.chat-hdr{position:absolute;top:0;left:0;right:0;height:90px;background:var(--bg-blur);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;padding:0 20px 14px;gap:12px;z-index:10}
+.chat-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 12px var(--accent-g)}
+.chat-name{font-size:16px;font-weight:700;color:var(--text);display:block}
+.chat-status{font-size:12px;color:var(--teal);font-weight:500;display:flex;align-items:center;gap:5px;margin-top:1px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal)}
+.msgs{position:absolute;top:90px;bottom:80px;left:0;right:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:78%;display:flex;flex-direction:column;gap:3px}
+.msg.ai{align-self:flex-start}.msg.u{align-self:flex-end}
+.bubble{padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.55;color:var(--text)}
+.msg.ai .bubble{background:var(--s3);border:1px solid var(--border);border-bottom-left-radius:5px}
+.msg.u .bubble{background:linear-gradient(135deg,var(--accent),#6B52F0);color:#fff;border-bottom-right-radius:5px}
+.msg-t{font-size:11px;color:var(--text3);padding:0 4px}
+.msg.u .msg-t{align-self:flex-end}
+.chat-inp{position:absolute;bottom:0;left:0;right:0;height:80px;background:var(--bg-blur);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px}
+.inp-field{flex:1;height:40px;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:0 16px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.inp-field::placeholder{color:var(--text3)}
+.send-btn{width:40px;height:40px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px var(--accent-g)}
+.mic-btn{width:40px;height:40px;border-radius:50%;background:var(--s2);border:1px solid var(--border);color:var(--text2);font-size:17px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+
+/* ── FILES ── */
+.files-bg{position:absolute;inset:0;background:radial-gradient(ellipse 260px 200px at 20% 8%,rgba(255,170,92,.07) 0%,transparent 65%),var(--bg)}
+.files-hdr{position:absolute;top:0;left:0;right:0;height:90px;background:var(--bg-blur);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;padding:0 20px 14px;gap:12px;z-index:10}
+.files-ttl{font-size:17px;font-weight:700;color:var(--text);flex:1}
+.icon-btn{width:34px;height:34px;border-radius:50%;background:var(--s2);border:1px solid var(--border);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300}
+.fsearch{position:absolute;top:90px;left:0;right:0;padding:12px 16px 10px;background:var(--bg-blur);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);z-index:9}
+.sbar{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:8px 14px}
+.sbar input{flex:1;background:none;border:none;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.sbar input::placeholder{color:var(--text3)}
+.cats{position:absolute;top:152px;left:0;right:0;padding:10px 16px;display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg-blur);z-index:8}
+.chip{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;background:var(--s1);border:1px solid var(--border);color:var(--text2);transition:all .18s}
+.chip.on{background:var(--accent-s);border-color:rgba(139,114,255,.3);color:var(--accent)}
+.flist{position:absolute;top:208px;bottom:80px;left:0;right:0;overflow-y:auto;padding:4px 16px;display:flex;flex-direction:column}
+.fi{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.ficon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+.ficon.doc{background:rgba(94,234,181,.12)}.ficon.img{background:rgba(139,114,255,.12)}.ficon.vid{background:rgba(255,110,122,.12)}.ficon.pdf{background:rgba(255,170,92,.12)}.ficon.lnk{background:rgba(100,170,255,.12)}
+.finfo{flex:1;overflow:hidden}
+.fname{font-size:14px;color:var(--text);font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmeta{font-size:12px;color:var(--text3);display:flex;gap:8px}
+.fmore{width:28px;height:28px;border-radius:50%;background:var(--s1);border:1px solid var(--border);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.finp{position:absolute;bottom:0;left:0;right:0;height:80px;background:var(--bg-blur);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px}
+
+/* ── APPS GRID ── */
+.apps-bg{position:absolute;inset:0;background:radial-gradient(ellipse 360px 260px at 50% -2%,rgba(139,114,255,.11) 0%,transparent 65%),var(--bg)}
+.apps-c{position:absolute;inset:0;padding:70px 20px 20px;display:flex;flex-direction:column;overflow-y:auto}
+.apps-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 18px}
+.apps-ttl{font-size:22px;font-weight:700;color:var(--text);margin-bottom:18px;font-family:'Outfit',sans-serif}
+.agrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px}
+.aitem{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.aico{width:64px;height:64px;border-radius:16px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .18s;position:relative}
+.aitem:active .aico{transform:scale(.88)}
+.aname{font-size:10.5px;color:var(--text2);font-weight:500;text-align:center;line-height:1.3}
+.badge{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+
+/* ── SENSE ── */
+.sense-bg{position:absolute;inset:0;background:radial-gradient(ellipse 120% 60% at 50% 0%,rgba(94,234,181,.07) 0%,transparent 65%),radial-gradient(ellipse 80% 50% at 80% 100%,rgba(139,114,255,.06) 0%,transparent 60%),var(--bg)}
+.sense-scroll{position:absolute;top:52px;bottom:0;left:0;right:0;overflow-y:auto;padding:12px 18px 36px}
+.sense-hero{padding:18px 0 14px;text-align:center}
+.sense-orb-wrap{position:relative;width:88px;height:88px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+.sense-orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--teal);animation:sense-pulse 4s ease-out infinite}
+.sense-orb-ring:nth-child(2){animation-delay:1.3s;border-color:var(--accent);animation-duration:4.5s}
+@keyframes sense-pulse{0%{transform:scale(.78);opacity:.7}100%{transform:scale(1.52);opacity:0}}
+.sense-orb-inner{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(94,234,181,.18),rgba(139,114,255,.22));border:1px solid rgba(94,234,181,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(12px);position:relative;z-index:2}
+.sense-orb-score{font-size:22px;font-weight:800;color:var(--text);line-height:1.1}
+.sense-orb-lbl{font-size:8px;color:var(--teal);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.sense-greeting{font-size:17px;font-weight:700;color:var(--text);margin-bottom:3px}
+.sense-tagline{font-size:11.5px;color:var(--text2)}
+.sense-state-row{display:flex;gap:7px;margin-bottom:13px}
+.sense-state-card{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:11px 8px;text-align:center}
+.sense-state-ico{font-size:19px;margin-bottom:3px}
+.sense-state-val{font-size:14px;font-weight:700;color:var(--text);margin-bottom:1px}
+.sense-state-lbl{font-size:9px;color:var(--text3)}
+.sense-section{margin-bottom:13px}
+.sense-sec-hdr{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.sense-insight-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:7px}
+.sense-insight-row{display:flex;align-items:flex-start;gap:10px}
+.sense-insight-ico{font-size:17px;flex-shrink:0;margin-top:2px}
+.sense-insight-ttl{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.sense-insight-sub{font-size:11.5px;color:var(--text2);line-height:1.55}
+.sense-bar-row{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.sense-bar-lbl{font-size:10px;color:var(--text2);min-width:38px}
+.sense-bar-track{flex:1;height:5px;background:var(--s3);border-radius:3px;overflow:hidden}
+.sense-bar-fill{height:100%;border-radius:3px}
+.sense-bar-val{font-size:10px;color:var(--text3);min-width:28px;text-align:right}
+.sense-timeline{display:flex;flex-direction:column}
+.stl-item{display:flex;gap:11px;align-items:flex-start;position:relative;padding-bottom:13px}
+.stl-item:not(:last-child)::after{content:'';position:absolute;left:14px;top:28px;bottom:0;width:1px;background:var(--border)}
+.stl-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;z-index:1;background:var(--s2);border:1px solid var(--border)}
+.stl-dot.hi{background:var(--accent-s);border-color:var(--accent-g)}
+.stl-body{flex:1;padding-top:3px}
+.stl-ttl{font-size:12.5px;font-weight:500;color:var(--text);margin-bottom:2px}
+.stl-time{font-size:11px;color:var(--text3)}
+.sense-recommend{background:linear-gradient(135deg,rgba(139,114,255,.1),rgba(94,234,181,.07));border:1px solid var(--accent-g);border-radius:14px;padding:13px}
+.sense-rec-ttl{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px}
+.sense-rec-item{display:flex;align-items:flex-start;gap:7px;margin-bottom:7px;font-size:12px;color:var(--text2);line-height:1.5}
+.sense-rec-item:last-child{margin-bottom:0}
+.soon-tag{display:inline-block;margin-top:16px;padding:5px 14px;border-radius:20px;background:var(--s2);border:1px solid var(--border);font-size:12px;color:var(--text3);font-weight:500}
+
+/* ── SAVE POPUP ── */
+.overlay{position:absolute;inset:0;z-index:300;display:flex;align-items:flex-end;justify-content:center;padding-bottom:100px;background:rgba(0,0,0,0);pointer-events:none;transition:background .3s}
+.overlay.show{background:rgba(0,0,0,.55);pointer-events:all}
+.pop{background:var(--card);border:1px solid var(--border2);border-radius:26px;padding:22px;width:calc(100% - 36px);box-shadow:0 24px 70px rgba(0,0,0,.7);transform:translateY(40px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1)}
+.overlay.show .pop{transform:translateY(0);opacity:1}
+.pop-ttl{font-size:15px;color:var(--text);font-weight:700;margin-bottom:6px}
+.pop-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
+.pop-file{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:16px}
+.pop-ficon{font-size:24px;flex-shrink:0}
+.pop-fname{font-size:13px;color:var(--text);font-weight:500;margin-bottom:2px}
+.pop-fsize{font-size:12px;color:var(--text3)}
+.pop-btns{display:flex;gap:10px}
+.pb{flex:1;height:46px;border-radius:14px;border:none;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .18s;letter-spacing:.2px}
+.pb.save{background:var(--teal-s);border:1px solid rgba(94,234,181,.22);color:var(--teal)}
+.pb.analyze{background:var(--accent);color:#fff;box-shadow:0 0 18px var(--accent-g)}
+.pb:active{transform:scale(.96)}
+
+/* ── NOTIFICATION ── */
+.notif{position:absolute;top:62px;left:16px;right:16px;background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:400;box-shadow:0 10px 36px rgba(0,0,0,.4);transform:translateY(-110px);opacity:0;transition:all .42s cubic-bezier(.34,1.56,.64,1)}
+.notif.show{transform:translateY(0);opacity:1}
+.notif-ico{width:36px;height:36px;border-radius:10px;background:var(--accent-s);border:1px solid rgba(139,114,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.notif-body{flex:1}
+.notif-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.notif-d{font-size:12px;color:var(--text2)}
+.notif-time{font-size:11px;color:var(--text3)}
+
+/* ══════════════════════════════════════
+   APP SCREENS
+══════════════════════════════════════ */
+.app-screen{position:absolute;inset:0;background:var(--bg);z-index:250;transform:translateY(100%);transition:transform .46s cubic-bezier(.32,.72,0,1);overflow:hidden;border-radius:52px}
+.app-screen.open{transform:translateY(0)}
+.app-hdr{position:absolute;top:0;left:0;right:0;height:100px;display:flex;align-items:flex-end;padding:0 16px 14px;background:var(--bg-blur);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:10;gap:8px}
+.app-back{width:32px;height:32px;border:none;background:none;color:var(--accent);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
+.app-hdr-ttl{font-size:17px;font-weight:700;color:var(--text);flex:1}
+.app-hdr-act{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--border);color:var(--text2);font-size:22px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.app-body{position:absolute;top:100px;bottom:0;left:0;right:0;overflow-y:auto;padding:16px}
+
+/* ── APP: 提醒 ── */
+.seg-ctrl{display:flex;gap:4px;background:var(--s1);border-radius:12px;padding:4px;margin-bottom:16px}
+.seg{flex:1;height:32px;border-radius:9px;border:none;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--text2);background:none;transition:all .18s}
+.seg.on{background:var(--s3);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.sec-lbl{font-size:12px;color:var(--text3);font-weight:600;letter-spacing:.6px;text-transform:uppercase;margin:14px 0 8px;padding:0 2px}
+.r-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:16px;margin-bottom:8px}
+.r-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border2);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;transition:all .2s;margin-top:1px}
+.r-check.done{background:var(--teal);border-color:var(--teal);color:#fff}
+.r-body{flex:1}
+.r-title{font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px}
+.r-title.done{text-decoration:line-through;color:var(--text3)}
+.r-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.r-time{font-size:11px;color:var(--text3);font-weight:500}
+.r-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px}
+.tag-work{background:rgba(139,114,255,.15);color:var(--accent)}
+.tag-health{background:rgba(94,234,181,.15);color:var(--teal)}
+.tag-life{background:rgba(255,170,92,.15);color:var(--orange)}
+.r-priority{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:7px}
+.pr-hi{background:#FF6E7A}.pr-md{background:var(--orange)}.pr-lo{background:var(--text3)}
+.r-fab{position:absolute;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px var(--accent-g),0 0 0 4px var(--accent-s);transition:transform .15s}
+.r-fab:active{transform:scale(.9)}
+
+/* ── APP: 工作流 ── */
+.wf-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden}
+.wf-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.wf-ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.wf-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.wf-desc{font-size:12px;color:var(--text3)}
+.wf-toggle{margin-left:auto;width:44px;height:26px;border-radius:13px;background:var(--s1);border:1px solid var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.wf-toggle.on{background:var(--teal);border-color:var(--teal)}
+.wf-thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.wf-toggle.on .wf-thumb{left:20px}
+.wf-steps{display:flex;align-items:center;gap:0;margin-bottom:12px}
+.wf-step{display:flex;align-items:center;gap:0;flex:1}
+.wf-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.wf-dot.done{background:var(--teal)}.wf-dot.active{background:var(--accent)}
+.wf-line{flex:1;height:2px;background:var(--border2)}
+.wf-line.done{background:var(--teal)}
+.wf-footer{display:flex;align-items:center;justify-content:space-between}
+.wf-stat{font-size:12px;color:var(--text3)}
+.wf-run{padding:6px 16px;border-radius:20px;background:var(--accent-s);border:1px solid rgba(139,114,255,.2);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.wf-tpl-ttl{font-size:13px;font-weight:600;color:var(--text2);margin:18px 0 10px}
+.tpl-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.tpl-item{flex-shrink:0;background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:12px 14px;min-width:130px}
+.tpl-ico{font-size:20px;margin-bottom:8px}
+.tpl-name{font-size:12px;font-weight:600;color:var(--text)}
+.tpl-desc{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ── APP: 会议纪要 ── */
+.rec-area{display:flex;flex-direction:column;align-items:center;padding:20px 0 24px}
+.rec-btn{width:72px;height:72px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .2s;background:linear-gradient(135deg,var(--red),#FF4E7E);box-shadow:0 0 0 8px rgba(255,110,122,.12),0 8px 24px rgba(255,110,122,.3)}
+.rec-btn.recording{animation:recpulse 1.6s ease-in-out infinite;box-shadow:0 0 0 12px rgba(255,110,122,.15),0 8px 24px rgba(255,110,122,.4)}
+@keyframes recpulse{0%,100%{box-shadow:0 0 0 8px rgba(255,110,122,.15),0 8px 24px rgba(255,110,122,.4)}50%{box-shadow:0 0 0 16px rgba(255,110,122,.06),0 8px 24px rgba(255,110,122,.25)}}
+.rec-label{font-size:13px;color:var(--text2);margin-top:12px;font-weight:500}
+.waveform{display:flex;align-items:center;gap:3px;height:28px;margin-top:8px}
+.wave-bar{width:3px;border-radius:2px;background:var(--red);animation:wave .9s ease-in-out infinite}
+.wave-bar:nth-child(1){height:6px;animation-delay:0s}
+.wave-bar:nth-child(2){height:14px;animation-delay:.1s}
+.wave-bar:nth-child(3){height:22px;animation-delay:.2s}
+.wave-bar:nth-child(4){height:16px;animation-delay:.3s}
+.wave-bar:nth-child(5){height:10px;animation-delay:.4s}
+.wave-bar:nth-child(6){height:18px;animation-delay:.5s}
+.wave-bar:nth-child(7){height:8px;animation-delay:.6s}
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
+.waveform.inactive .wave-bar{animation:none;height:4px;opacity:.3}
+.meet-card{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:10px}
+.meet-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.meet-ico{width:36px;height:36px;border-radius:10px;background:rgba(255,110,122,.15);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.meet-name{font-size:14px;font-weight:700;color:var(--text)}
+.meet-meta{font-size:12px;color:var(--text3);margin-top:2px}
+.meet-sum{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+.meet-acts{display:flex;gap:8px}
+.meet-act{padding:5px 12px;border-radius:10px;background:var(--s1);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit}
+
+/* ── APP: 热量管理 ── */
+.cal-ring-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 0 16px}
+.cal-ring{position:relative;width:160px;height:160px}
+.cal-ring svg{transform:rotate(-90deg)}
+.cal-ring-bg{fill:none;stroke:var(--s3);stroke-width:12}
+.cal-ring-fill{fill:none;stroke:url(#cal-grad);stroke-width:12;stroke-linecap:round;stroke-dasharray:427;stroke-dashoffset:128;transition:stroke-dashoffset .6s ease}
+.cal-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cal-num{font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;color:var(--text)}
+.cal-unit{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.5px}
+.cal-goal{font-size:12px;color:var(--text2);margin-top:8px}
+.macro-row{display:flex;gap:8px;margin-bottom:20px}
+.macro-card{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:10px 10px 12px;text-align:center}
+.macro-val{font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;color:var(--text)}
+.macro-lbl{font-size:10px;color:var(--text3);font-weight:500;margin-top:2px}
+.macro-bar{height:3px;border-radius:2px;background:var(--s1);margin-top:6px;overflow:hidden}
+.macro-fill{height:100%;border-radius:2px}
+.cal-modes{display:flex;gap:8px;margin-bottom:20px}
+.cal-mode{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .18s}
+.cal-mode:active{transform:scale(.94)}
+.cal-mode-ico{font-size:22px;display:block;margin-bottom:6px}
+.cal-mode-lbl{font-size:11px;font-weight:600;color:var(--text2)}
+.food-sec-lbl{font-size:12px;color:var(--text3);font-weight:600;letter-spacing:.6px;margin-bottom:10px}
+.food-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.food-ico{width:38px;height:38px;border-radius:10px;background:rgba(255,170,92,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.food-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.food-meta{font-size:11px;color:var(--text3)}
+.food-cal{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:var(--orange);margin-left:auto}
+
+/* ── APP: 密码本 ── */
+.pwd-cats{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto}
+.pwd-card{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.pwd-logo{width:42px;height:42px;border-radius:12px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.pwd-info{flex:1}
+.pwd-site{font-size:14px;font-weight:700;color:var(--text)}
+.pwd-user{font-size:12px;color:var(--text3);margin-top:2px}
+.pwd-stars{font-size:13px;color:var(--text3);letter-spacing:2px;margin-top:3px}
+.pwd-copy{width:34px;height:34px;border-radius:50%;background:var(--s1);border:1px solid var(--border);color:var(--text3);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pwd-fab{position:absolute;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px var(--accent-g),0 0 0 4px var(--accent-s);transition:transform .15s}
+.pwd-fab:active{transform:scale(.9)}
+.bio-notice{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border:1px solid var(--border);border-radius:14px;margin-bottom:16px}
+.bio-ico{font-size:20px;flex-shrink:0}
+.bio-txt{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* ── APP: 视频转录 ── */
+.vid-url-area{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:16px}
+.vid-url-lbl{font-size:12px;color:var(--text3);font-weight:600;margin-bottom:8px;letter-spacing:.4px}
+.vid-url-row{display:flex;gap:10px;align-items:center}
+.vid-url-inp{flex:1;height:40px;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:0 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.vid-url-inp::placeholder{color:var(--text3)}
+.vid-go{padding:0 16px;height:40px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit}
+.vid-progress{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:16px}
+.vid-prog-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.vid-prog-ico{font-size:20px}
+.vid-prog-txt{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.vid-prog-pct{font-size:13px;font-weight:700;color:var(--accent);font-family:'Outfit',sans-serif}
+.vid-prog-bar{height:4px;border-radius:2px;background:var(--s3);overflow:hidden}
+.vid-prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--teal));width:62%;transition:width .4s}
+.vid-result{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:12px}
+.vid-r-ttl{font-size:12px;color:var(--text3);font-weight:600;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.vid-r-copy{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600}
+.vid-r-txt{font-size:13px;color:var(--text2);line-height:1.7}
+.vid-history-ttl{font-size:13px;font-weight:600;color:var(--text2);margin:18px 0 10px}
+.vid-h-item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.vid-h-ico{width:38px;height:38px;border-radius:10px;background:rgba(255,110,122,.12);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.vid-h-info{flex:1}
+.vid-h-name{font-size:13px;font-weight:600;color:var(--text)}
+.vid-h-meta{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── APP: 知识库 ── */
+.kb-upload{border:2px dashed var(--border2);border-radius:18px;padding:28px;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .18s}
+.kb-upload:active{background:var(--s1);border-color:var(--accent)}
+.kb-upload-ico{font-size:32px;display:block;margin-bottom:10px;opacity:.5}
+.kb-upload-ttl{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.kb-upload-sub{font-size:12px;color:var(--text3)}
+.kb-ask{background:var(--s2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:20px}
+.kb-ask-lbl{font-size:12px;color:var(--text3);font-weight:600;margin-bottom:8px;letter-spacing:.4px}
+.kb-ask-row{display:flex;gap:8px}
+.kb-ask-inp{flex:1;height:40px;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:0 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.kb-ask-inp::placeholder{color:var(--text3)}
+.kb-ask-btn{width:40px;height:40px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.kb-docs-ttl{font-size:12px;color:var(--text3);font-weight:600;letter-spacing:.6px;margin-bottom:10px}
+.kb-doc{display:flex;gap:12px;align-items:center;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:16px;margin-bottom:8px}
+.kb-doc-ico{width:40px;height:40px;border-radius:10px;background:rgba(255,170,92,.15);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.kb-doc-info{flex:1}
+.kb-doc-name{font-size:13px;font-weight:600;color:var(--text)}
+.kb-doc-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.kb-indexed{padding:2px 7px;border-radius:6px;background:rgba(94,234,181,.15);color:var(--teal);font-size:10px;font-weight:700;flex-shrink:0}
+
+/* ── APP: MBTI陪伴 ── */
+.mbti-comp-card{background:linear-gradient(135deg,var(--accent-s),var(--teal-s));border:1px solid rgba(139,114,255,.2);border-radius:22px;padding:18px;margin-bottom:16px;position:relative;overflow:hidden}
+.mbti-comp-glow{position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:radial-gradient(circle,var(--accent-g) 0%,transparent 70%);pointer-events:none}
+.mbti-comp-top{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.mbti-av{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 0 16px var(--accent-g)}
+.mbti-comp-name{font-size:17px;font-weight:700;color:var(--text);margin-bottom:2px}
+.mbti-type-badge{display:inline-block;padding:3px 10px;border-radius:8px;background:var(--accent-s);border:1px solid rgba(139,114,255,.2);font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px}
+.mbti-traits{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.mbti-trait{padding:4px 10px;border-radius:10px;background:var(--s1);border:1px solid var(--border);font-size:11px;font-weight:500;color:var(--text2)}
+.mbti-desc{font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:14px}
+.mbti-change{padding:8px 18px;border-radius:12px;background:var(--s2);border:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .18s}
+.mbti-chat{background:var(--s2);border:1px solid var(--border);border-radius:18px;overflow:hidden;margin-bottom:16px}
+.mbti-chat-msgs{padding:14px;min-height:100px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.mbti-bubble{font-size:13px;line-height:1.55;max-width:85%;padding:9px 13px;border-radius:14px}
+.mbti-bubble.ai{align-self:flex-start;background:var(--s3);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+.mbti-bubble.u{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.mbti-inp-row{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);background:var(--s1)}
+.mbti-inp{flex:1;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none}
+.mbti-inp::placeholder{color:var(--text3)}
+.mbti-send{width:36px;height:36px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mbti-types-ttl{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px}
+.mbti-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mbti-cell{padding:8px 4px;border-radius:12px;background:var(--s2);border:1px solid var(--border);text-align:center;cursor:pointer;transition:all .18s}
+.mbti-cell:active{transform:scale(.92)}
+.mbti-cell.selected{background:var(--accent-s);border-color:rgba(139,114,255,.3)}
+.mbti-cell-type{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.mbti-cell-name{font-size:9px;color:var(--text3);margin-top:2px;line-height:1.3}
+
+/* ── SVG STATUS ICONS (shared) ── */
+.si-wifi{opacity:.9}.si-batt{opacity:.9}.si-signal{opacity:.9}
+
+/* ── DEV PLACEHOLDER ── */
+.dev-ph{position:absolute;inset:0;top:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+.dev-ico{font-size:52px;margin-bottom:18px;opacity:.28}
+.dev-ttl{font-size:18px;font-weight:600;color:var(--text2);margin-bottom:10px}
+.dev-desc{font-size:13px;color:var(--text3);line-height:1.75}
+
+/* ── FILE MANAGEMENT (WeChat style) ── */
+.fm-bg{position:absolute;inset:0;background:var(--bg)}
+.fm-hdr{position:absolute;top:0;left:0;right:0;height:90px;background:var(--bg-blur);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;padding:0 20px 14px;gap:12px;z-index:10}
+.fm-av{width:38px;height:38px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,rgba(255,170,92,.6),rgba(255,110,70,.5));display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 12px rgba(255,150,70,.3)}
+.fm-ttl{font-size:16px;font-weight:700;color:var(--text);flex:1}
+.fm-search-bar{position:absolute;top:90px;left:0;right:0;padding:10px 16px;background:var(--bg-blur);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);z-index:9}
+.fm-search-inner{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:7px 12px}
+.fm-search-inner input{flex:1;background:none;border:none;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.fm-search-inner input::placeholder{color:var(--text3)}
+.fm-feed{position:absolute;top:141px;bottom:80px;left:0;right:0;overflow-y:auto;overflow-x:hidden;padding:12px 22px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.fm-date-sep{text-align:center;font-size:11px;color:var(--text3);font-weight:500;margin:4px 0 2px;letter-spacing:.3px}
+.fm-row{display:flex;justify-content:flex-end}
+.fm-file-card{max-width:255px;background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center}
+.fm-file-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+.fm-file-body{flex:1;min-width:0}
+.fm-file-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.fm-file-meta{font-size:11px;color:var(--text3)}
+.fm-file-open{width:28px;height:28px;border-radius:8px;background:var(--s1);border:1px solid var(--border);color:var(--text3);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fm-img-card{max-width:185px;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+.fm-img-inner{width:185px;height:120px;display:flex;align-items:center;justify-content:center;font-size:36px}
+.fm-img-inner.a{background:linear-gradient(135deg,rgba(139,114,255,.25),rgba(94,234,181,.15))}
+.fm-img-inner.b{background:linear-gradient(135deg,rgba(255,170,92,.2),rgba(255,110,122,.15))}
+.fm-img-lbl{font-size:11px;color:var(--text3);padding:6px 10px 8px;background:var(--s2)}
+.fm-link-card{max-width:248px;background:var(--s2);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.fm-link-preview{height:72px;display:flex;align-items:center;justify-content:center;font-size:26px}
+.fm-link-preview.a{background:linear-gradient(135deg,rgba(80,180,255,.18),rgba(40,120,200,.08))}
+.fm-link-preview.b{background:linear-gradient(135deg,rgba(94,234,181,.15),rgba(40,160,120,.08))}
+.fm-link-info{padding:8px 12px 10px}
+.fm-link-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.fm-link-url{font-size:11px;color:var(--accent)}
+.fm-text-bubble{max-width:220px;background:var(--accent);color:#fff;padding:9px 14px;border-radius:18px;border-bottom-right-radius:4px;font-size:13px;line-height:1.55}
+.fm-time{font-size:10px;color:var(--text3);padding:2px 2px 0;text-align:right}
+.fm-inp{position:absolute;bottom:16px;left:16px;right:16px;height:50px;background:var(--s2);border:1px solid var(--border2);border-radius:25px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;align-items:center;padding:0 8px 0 12px;gap:6px;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+.fm-inp-field{flex:1;height:34px;background:none;border:none;padding:0 6px;color:var(--text);font-size:13px;font-family:inherit;outline:none;min-width:0}
+.fm-inp-field::placeholder{color:var(--text3)}
+
+/* ── SPEC APP ── */
+.spec-scroll{position:absolute;top:100px;bottom:0;left:0;right:0;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;overflow-y:hidden;-webkit-overflow-scrolling:touch;user-select:none}
+.spec-page{min-width:390px;width:390px;height:100%;flex-shrink:0;scroll-snap-align:start;overflow-y:auto;padding:20px 20px 52px}
+.spec-dot-bar{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none;z-index:5}
+.sdot{width:5px;height:5px;border-radius:50%;background:var(--border2);transition:all .28s}.sdot.on{width:14px;border-radius:3px;background:var(--accent)}
+.spec-ttl{font-size:21px;font-weight:700;color:var(--text);margin-bottom:5px;letter-spacing:-.3px}
+.spec-sub{font-size:12.5px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.spec-sttl{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:9px;margin-top:18px}
+.swatch-row{display:flex;gap:6px;margin-bottom:6px}
+.swatch{flex:1;height:58px;border-radius:12px;display:flex;flex-direction:column;justify-content:flex-end;padding:7px 8px}
+.swatch-name{font-size:10px;font-weight:700;color:rgba(255,255,255,.95);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.swatch-hex{font-size:9px;color:rgba(255,255,255,.65);font-family:monospace;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.typo-row{padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.typo-spec{font-size:9px;color:var(--text3);font-family:monospace;white-space:nowrap;flex-shrink:0}
+.space-item{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.space-bar-fill{height:8px;background:linear-gradient(90deg,var(--accent),var(--teal));border-radius:4px}
+.space-lbl{font-size:11px;color:var(--text2);font-weight:600;min-width:28px}
+.space-val{font-size:10px;color:var(--text3);font-family:monospace;min-width:46px}
+.radius-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.radius-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.radius-box{width:42px;height:42px;background:var(--accent-s);border:1.5px solid var(--accent-g)}
+.radius-lbl{font-size:9px;color:var(--text3);font-family:monospace}
+.glass-bg{height:148px;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(139,114,255,.35),rgba(94,234,181,.22),rgba(255,170,92,.18));margin-bottom:10px}
+.glass-demo-card{padding:14px 18px;background:var(--bg-blur);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border2);border-radius:14px;text-align:center}
+.glass-dlbl{font-size:13px;color:var(--text);font-weight:600;margin-bottom:2px}
+.glass-dsub{font-size:11px;color:var(--text2)}
+.bg-layer-row{display:flex;gap:6px;margin-bottom:6px}
+.bg-layer{flex:1;padding:10px 8px;border-radius:10px;text-align:center;border:1px solid var(--border)}
+.bg-layer-name{font-size:10px;font-weight:600;color:var(--text);margin-bottom:2px}
+.bg-layer-val{font-size:9px;color:var(--text3);font-family:monospace}
+.btn-demo-wrap{display:flex;flex-direction:column;gap:10px}
+.btn-demo-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.demo-btn-primary{padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.demo-btn-secondary{padding:9px 18px;background:var(--accent-s);color:var(--accent);border:1.5px solid var(--accent-g);border-radius:12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.demo-btn-ghost{padding:9px 18px;background:var(--s2);color:var(--text);border:1px solid var(--border2);border-radius:12px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer}
+.demo-btn-teal{padding:9px 18px;background:var(--teal-s);color:var(--teal);border:1.5px solid rgba(94,234,181,.3);border-radius:12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.demo-btn-danger{padding:9px 18px;background:rgba(255,110,122,.12);color:var(--red);border:1.5px solid rgba(255,110,122,.25);border-radius:12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.demo-btn-icon{width:40px;height:40px;border-radius:12px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.demo-btn-fab{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(139,114,255,.45)}
+.inp-demo-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.demo-inp{height:44px;background:var(--s2);border:1px solid var(--border2);border-radius:12px;padding:0 14px;font-size:13px;color:var(--text);font-family:inherit;width:100%;outline:none}
+.demo-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-s)}
+.demo-inp::placeholder{color:var(--text3)}
+.demo-srch-wrap{position:relative}
+.demo-srch{height:36px;background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:0 14px 0 34px;font-size:12px;color:var(--text);font-family:inherit;width:100%;outline:none}
+.demo-srch::placeholder{color:var(--text3)}
+.demo-srch-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+.toggle-row-demo{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.toggle-text-lbl{font-size:13px;color:var(--text)}
+.toggle-text-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.demo-toggle{width:42px;height:24px;border-radius:12px;position:relative;cursor:pointer;border:none;flex-shrink:0;transition:background .2s}
+.demo-toggle.tog-on{background:var(--accent)}
+.demo-toggle.tog-off{background:var(--s3)}
+.demo-toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.demo-toggle.tog-on::after{left:21px}
+.demo-toggle.tog-off::after{left:3px}
+.chip-demo-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.demo-chip{padding:5px 12px;border-radius:16px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;font-family:inherit}
+.demo-chip.c-solid{background:var(--accent);color:#fff}
+.demo-chip.c-outline{background:var(--accent-s);color:var(--accent);border-color:var(--accent-g)}
+.demo-chip.c-ghost{background:var(--s2);color:var(--text2);border-color:var(--border)}
+.demo-chip.c-teal{background:var(--teal-s);color:var(--teal)}
+.demo-chip.c-orange{background:rgba(255,170,92,.12);color:var(--orange)}
+.demo-chip.c-red{background:rgba(255,110,122,.12);color:var(--red)}
+.badge-row-demo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.demo-badge{padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;font-family:inherit}
+.demo-badge.b-accent{background:var(--accent);color:#fff}
+.demo-badge.b-teal{background:var(--teal-s);color:var(--teal)}
+.demo-badge.b-red{background:rgba(255,110,122,.2);color:var(--red)}
+.demo-badge.b-orange{background:rgba(255,170,92,.2);color:var(--orange)}
+.demo-badge.b-dot{width:8px;height:8px;border-radius:50%;padding:0;display:inline-block;vertical-align:middle}
+.card-demo{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:8px}
+.card-demo-ttl{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.card-demo-sub{font-size:12px;color:var(--text2);line-height:1.5}
+.mini-card-row{display:flex;gap:8px;margin-bottom:10px}
+.mini-card{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
+.mini-card-ico{font-size:22px;margin-bottom:3px}
+.mini-card-val{font-size:17px;font-weight:700;color:var(--text)}
+.mini-card-lbl{font-size:10px;color:var(--text3)}
+.m-demo-box{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.m-lbl{font-size:11px;color:var(--text2);margin-bottom:2px;display:flex;justify-content:space-between;align-items:center}
+.m-lbl span{font-family:monospace;font-size:10px;color:var(--text3)}
+.m-track{height:18px;position:relative;margin:6px 0 2px}
+.m-ball{width:16px;height:16px;border-radius:50%;background:var(--accent);position:absolute;left:0;top:1px}
+.m-ball.ease-out{animation:mball 2.2s cubic-bezier(.32,.72,0,1) infinite alternate}
+.m-ball.spring{animation:mball 1.8s cubic-bezier(.34,1.56,.64,1) infinite alternate}
+.m-ball.linear{animation:mball 2s linear infinite alternate}
+.m-ball.ease-in{animation:mball 2s cubic-bezier(.55,0,1,.45) infinite alternate}
+@keyframes mball{from{left:0}to{left:calc(100% - 16px)}}
+.nav-world{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:5px;max-width:250px;margin:10px auto 14px;aspect-ratio:1}
+.nc{background:var(--s2);border:1px solid var(--border);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:9px;color:var(--text2);text-align:center;padding:4px}
+.nc.nc-active{background:var(--accent-s);border-color:var(--accent-g);color:var(--accent);font-weight:600}
+.nc .ni{font-size:14px}
+.nc-arrow{display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:22px}
+.nc-empty{background:transparent;border-color:transparent}
+.code-block{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:10px;font-family:monospace;color:var(--text2);line-height:1.65;overflow-x:auto;white-space:pre;margin-bottom:10px}
+.ck{color:var(--accent)}.cs{color:var(--teal)}.cc{color:var(--text3)}
+.var-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px}
+.var-table tr:not(:last-child) td{border-bottom:1px solid var(--border)}
+.var-table td{padding:6px 4px;vertical-align:top}
+.vk{font-family:monospace;color:var(--accent);font-size:10px}
+.vd{color:var(--text2);font-size:11px}
+.ovw-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:8px;display:flex;gap:11px;align-items:flex-start}
+.ovw-ico{font-size:20px;flex-shrink:0;margin-top:1px}
+.ovw-ttl{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.ovw-desc{font-size:11.5px;color:var(--text2);line-height:1.5}
+.stat-row{display:flex;gap:8px;margin-bottom:16px}
+.stat-item{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center}
+.stat-val{font-size:20px;font-weight:800;color:var(--accent);line-height:1}
+.stat-lbl{font-size:9px;color:var(--text3);margin-top:3px}
+
+/* ── Notes App ── */
+.notes-wrap{position:absolute;top:100px;bottom:0;left:0;right:0;overflow:hidden}
+.notes-list-view,.notes-detail-view{position:absolute;inset:0;transition:transform .38s cubic-bezier(.32,.72,0,1)}
+.notes-detail-view{transform:translateX(100%)}
+.notes-detail-view.open{transform:translateX(0)}
+/* search */
+.notes-search-wrap{padding:8px 16px 12px;position:relative}
+.notes-search{width:100%;height:36px;background:var(--s1);border:none;border-radius:12px;padding:0 12px 0 34px;font-size:14px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box}
+.notes-search::placeholder{color:var(--text3)}
+.notes-search-ico{position:absolute;left:27px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.45;pointer-events:none}
+/* section labels */
+.notes-sec{padding:0 16px 6px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+/* note rows */
+.note-row{display:flex;align-items:center;padding:11px 16px;gap:12px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.note-row:active{background:var(--s1)}
+.note-row+.note-row{border-top:1px solid var(--border)}
+.note-pin-ico{font-size:13px;opacity:.55;flex-shrink:0}
+.note-body{flex:1;min-width:0}
+.note-title{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.note-snippet{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.4}
+.note-snippet em{font-style:normal;color:var(--text3)}
+.note-meta{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.note-date{font-size:11px;color:var(--text3)}
+.note-chev{font-size:13px;color:var(--text3);opacity:.6}
+/* pinned note gets warm highlight */
+.note-row.pinned .note-title{color:var(--accent)}
+/* list scroll area */
+.notes-scroll{position:absolute;top:140px;bottom:74px;left:0;right:0;overflow-y:auto}
+.notes-new-bar{position:absolute;bottom:0;left:0;right:0;height:74px;display:flex;align-items:center;justify-content:flex-end;padding:0 24px 12px;gap:8px;background:linear-gradient(to top,var(--bg) 60%,transparent)}
+.notes-count{font-size:12px;color:var(--text3);flex:1;text-align:center;padding-bottom:6px}
+.notes-new-btn{width:44px;height:44px;border:none;border-radius:22px;background:var(--accent);color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(139,114,255,.45);flex-shrink:0;transition:transform .15s}
+.notes-new-btn:active{transform:scale(.92)}
+/* detail view */
+.notes-detail-hdr{position:absolute;top:0;left:0;right:0;height:100px;display:flex;align-items:flex-end;padding:0 16px 14px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:10;gap:8px}
+.notes-done-btn{border:none;background:none;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;padding:0 4px;font-family:inherit}
+.notes-title-input{flex:1;border:none;background:none;font-size:17px;font-weight:700;color:var(--text);font-family:inherit;outline:none;text-align:center}
+.notes-editor{position:absolute;top:100px;bottom:0;left:0;right:0;overflow-y:auto;padding:16px 20px 80px}
+.notes-date-line{font-size:12px;color:var(--text3);text-align:center;margin-bottom:14px}
+.notes-content{width:100%;min-height:300px;border:none;background:none;font-size:14.5px;line-height:1.75;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box}
+.notes-fmt-bar{position:absolute;bottom:0;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 8px;gap:4px;background:var(--bg-blur);backdrop-filter:blur(20px);border-top:1px solid var(--border)}
+.fmt-btn{width:38px;height:38px;border:none;background:none;color:var(--text2);font-size:16px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.fmt-btn:active{background:var(--s1)}
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <!-- Dynamic Island -->
+  <div class="di"></div>
+
+  <!-- Global Notification Banner -->
+  <div class="notif" id="notif">
+    <div class="notif-ico">✨</div>
+    <div class="notif-body">
+      <div class="notif-t">文档已分析完成</div>
+      <div class="notif-d">产品需求文档 v2.0 · 摘要已生成</div>
+    </div>
+    <span class="notif-time">刚刚</span>
+  </div>
+
+  <!-- Save/Analyze Popup -->
+  <div class="overlay" id="overlay">
+    <div class="pop">
+      <div class="pop-ttl">Nervus 检测到新文件</div>
+      <div class="pop-sub" style="margin-bottom:10px">来自 AirDrop · 2 分钟前 · 已完成预处理</div>
+      <div class="pop-file">
+        <div class="pop-ficon">📄</div>
+        <div style="flex:1;min-width:0">
+          <div class="pop-fname">产品需求文档 v2.1.pdf</div>
+          <div class="pop-fsize">3.1 MB · PDF · 38 页</div>
+        </div>
+      </div>
+      <div style="background:var(--s1);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;line-height:1.6;color:var(--text2)">
+        <div style="color:var(--teal);font-weight:600;margin-bottom:4px;font-size:11px">✦ Nervus 已分析</div>
+        · PDF 解析完成，提取关键词 <strong style="color:var(--text)">42 个</strong><br>
+        · 与你上次设计评审主题相似度 <strong style="color:var(--accent)">89%</strong><br>
+        · 检测到 <strong style="color:var(--text)">7 个待办项</strong>，可一键写入提醒
+      </div>
+      <div class="pop-btns" style="flex-direction:column;gap:8px">
+        <button class="pb analyze" onclick="doAnalyze()" style="width:100%">✨ 写入知识大脑 + 生成摘要</button>
+        <div style="display:flex;gap:8px">
+          <button class="pb save" onclick="doSave()" style="flex:1;font-size:12px">🎙 关联本次会议</button>
+          <button class="pb save" onclick="doSave()" style="flex:1;font-size:12px">✅ 提取 7 个待办</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       APP SCREENS
+  ══════════════════════════════════════ -->
+
+  <!-- ── APP: 提醒 ── -->
+  <div class="app-screen" id="app-remind">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">提醒</span>
+      <button class="app-hdr-act" onclick="">＋</button>
+    </div>
+    <div class="app-body" style="padding-bottom:80px">
+      <div class="seg-ctrl">
+        <button class="seg on">今天</button>
+        <button class="seg">计划</button>
+        <button class="seg">全部</button>
+      </div>
+
+      <div class="sec-lbl">待完成 · 3</div>
+
+      <div class="r-item">
+        <div class="r-priority pr-hi"></div>
+        <div class="r-check" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':''">
+        </div>
+        <div class="r-body">
+          <div class="r-title">准备产品方案 · Q2 发布计划</div>
+          <div class="r-meta">
+            <span class="r-time">今天 14:00</span>
+            <span class="r-tag tag-work">工作</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="r-item">
+        <div class="r-priority pr-md"></div>
+        <div class="r-check" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':''">
+        </div>
+        <div class="r-body">
+          <div class="r-title">团队周会 · 线上 Zoom</div>
+          <div class="r-meta">
+            <span class="r-time">今天 15:00</span>
+            <span class="r-tag tag-work">工作</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="r-item">
+        <div class="r-priority pr-lo"></div>
+        <div class="r-check" onclick="this.classList.toggle('done');this.textContent=this.classList.contains('done')?'✓':''">
+        </div>
+        <div class="r-body">
+          <div class="r-title">健身打卡 · 有氧 30 分钟</div>
+          <div class="r-meta">
+            <span class="r-time">今天 19:00</span>
+            <span class="r-tag tag-health">健康</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-lbl" style="margin-top:18px">已完成 · 2</div>
+
+      <div class="r-item" style="opacity:.55">
+        <div class="r-priority pr-lo"></div>
+        <div class="r-check done">✓</div>
+        <div class="r-body">
+          <div class="r-title done">早餐记录热量</div>
+          <div class="r-meta">
+            <span class="r-time">今天 08:30</span>
+            <span class="r-tag tag-health">健康</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="r-item" style="opacity:.55">
+        <div class="r-priority pr-md"></div>
+        <div class="r-check done">✓</div>
+        <div class="r-body">
+          <div class="r-title done">回复设计团队邮件</div>
+          <div class="r-meta">
+            <span class="r-time">今天 10:15</span>
+            <span class="r-tag tag-work">工作</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="r-fab">＋</button>
+  </div>
+
+  <!-- ── APP: 工作流 ── -->
+  <div class="app-screen" id="app-workflow">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">工作流</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">⚡</div>
+      <div class="dev-ttl">工作流自动化</div>
+      <div class="dev-desc">通过可视化流程编排，将重复任务自动化。<br>支持触发器、条件判断与多步骤执行链。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 会议纪要 ── -->
+  <div class="app-screen" id="app-meeting">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">会议纪要</span>
+      <button class="app-hdr-act">···</button>
+    </div>
+    <div class="app-body" style="padding-bottom:20px">
+      <div class="rec-area">
+        <button class="rec-btn" id="recBtn" onclick="toggleRec()">🎙</button>
+        <div class="rec-label" id="recLabel">点击开始录音</div>
+        <div class="waveform inactive" id="waveform">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+      </div>
+
+      <div class="meet-card">
+        <div class="meet-top">
+          <div class="meet-ico">📋</div>
+          <div style="flex:1">
+            <div class="meet-name">Q2 产品规划会</div>
+            <div class="meet-meta">今天 · 45分钟 · 6人参与</div>
+          </div>
+        </div>
+        <div class="meet-sum">本次会议确定了 Q2 核心功能优先级，AI 助手模块列为最高优先级。决议：4月底完成原型，5月启动开发，预计6月上线Beta版。</div>
+        <div class="meet-acts">
+          <button class="meet-act">📋 复制摘要</button>
+          <button class="meet-act">📤 导出</button>
+          <button class="meet-act">🔗 分享</button>
+        </div>
+      </div>
+
+      <div class="meet-card">
+        <div class="meet-top">
+          <div class="meet-ico">👥</div>
+          <div style="flex:1">
+            <div class="meet-name">技术周会 · 架构评审</div>
+            <div class="meet-meta">昨天 · 60分钟 · 4人参与</div>
+          </div>
+        </div>
+        <div class="meet-sum">评审了边缘计算部署方案，确认使用 4B 模型在本地设备运行推理，云端仅用于备份同步。</div>
+        <div class="meet-acts">
+          <button class="meet-act">📋 复制摘要</button>
+          <button class="meet-act">📤 导出</button>
+          <button class="meet-act">🔗 分享</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: 热量管理 ── -->
+  <div class="app-screen" id="app-calorie">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">热量管理</span>
+      <button class="app-hdr-act" style="font-size:16px">📊</button>
+    </div>
+    <div class="app-body" style="padding-bottom:20px">
+      <div class="cal-ring-wrap">
+        <div class="cal-ring">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            <defs>
+              <linearGradient id="cal-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#FFAA5C"/>
+                <stop offset="100%" stop-color="#FF6E7A"/>
+              </linearGradient>
+            </defs>
+            <circle class="cal-ring-bg" cx="80" cy="80" r="68"/>
+            <circle class="cal-ring-fill" cx="80" cy="80" r="68"/>
+          </svg>
+          <div class="cal-center">
+            <span class="cal-num">1,452</span>
+            <span class="cal-unit">千卡</span>
+          </div>
+        </div>
+        <div class="cal-goal">目标 2,000 kcal · 剩余 548</div>
+      </div>
+
+      <div class="macro-row">
+        <div class="macro-card">
+          <div class="macro-val" style="color:var(--accent)">168g</div>
+          <div class="macro-lbl">碳水</div>
+          <div class="macro-bar"><div class="macro-fill" style="width:70%;background:var(--accent)"></div></div>
+        </div>
+        <div class="macro-card">
+          <div class="macro-val" style="color:var(--teal)">82g</div>
+          <div class="macro-lbl">蛋白质</div>
+          <div class="macro-bar"><div class="macro-fill" style="width:55%;background:var(--teal)"></div></div>
+        </div>
+        <div class="macro-card">
+          <div class="macro-val" style="color:var(--orange)">44g</div>
+          <div class="macro-lbl">脂肪</div>
+          <div class="macro-bar"><div class="macro-fill" style="width:60%;background:var(--orange)"></div></div>
+        </div>
+      </div>
+
+      <div class="cal-modes">
+        <div class="cal-mode">
+          <span class="cal-mode-ico">📷</span>
+          <span class="cal-mode-lbl">拍照识别</span>
+        </div>
+        <div class="cal-mode">
+          <span class="cal-mode-ico">🔍</span>
+          <span class="cal-mode-lbl">搜索食物</span>
+        </div>
+        <div class="cal-mode">
+          <span class="cal-mode-ico">✏️</span>
+          <span class="cal-mode-lbl">手动输入</span>
+        </div>
+      </div>
+
+      <div class="food-sec-lbl">今日饮食记录</div>
+      <div class="food-item">
+        <div class="food-ico">🥣</div>
+        <div style="flex:1">
+          <div class="food-name">燕麦粥 + 蓝莓</div>
+          <div class="food-meta">早餐 · 08:30 · 1碗</div>
+        </div>
+        <div class="food-cal">320</div>
+      </div>
+      <div class="food-item">
+        <div class="food-ico">🍱</div>
+        <div style="flex:1">
+          <div class="food-name">鸡胸肉沙拉</div>
+          <div class="food-meta">午餐 · 12:15 · 1份</div>
+        </div>
+        <div class="food-cal">480</div>
+      </div>
+      <div class="food-item">
+        <div class="food-ico">🍎</div>
+        <div style="flex:1">
+          <div class="food-name">苹果</div>
+          <div class="food-meta">下午茶 · 15:00 · 1个</div>
+        </div>
+        <div class="food-cal">95</div>
+      </div>
+      <div class="food-item">
+        <div class="food-ico">🍜</div>
+        <div style="flex:1">
+          <div class="food-name">番茄鸡蛋面</div>
+          <div class="food-meta">晚餐 · 18:45 · 1碗</div>
+        </div>
+        <div class="food-cal">557</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: 密码本 ── -->
+  <div class="app-screen" id="app-password">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">密码本</span>
+      <button class="app-hdr-act" style="font-size:16px">🔍</button>
+    </div>
+    <div class="app-body" style="padding-bottom:80px">
+      <div class="bio-notice">
+        <div class="bio-ico">🔒</div>
+        <div class="bio-txt">已通过 Face ID 验证 · 数据本地加密存储，端到端安全</div>
+      </div>
+
+      <div class="pwd-cats">
+        <div class="chip on">全部</div>
+        <div class="chip">工作</div>
+        <div class="chip">社交</div>
+        <div class="chip">银行</div>
+        <div class="chip">其他</div>
+      </div>
+
+      <div class="pwd-card">
+        <div class="pwd-logo">🐙</div>
+        <div class="pwd-info">
+          <div class="pwd-site">GitHub</div>
+          <div class="pwd-user">wangqioo</div>
+          <div class="pwd-stars">••••••••••••</div>
+        </div>
+        <button class="pwd-copy">⧉</button>
+      </div>
+
+      <div class="pwd-card">
+        <div class="pwd-logo">💬</div>
+        <div class="pwd-info">
+          <div class="pwd-site">微信</div>
+          <div class="pwd-user">手机号登录</div>
+          <div class="pwd-stars">••••••••</div>
+        </div>
+        <button class="pwd-copy">⧉</button>
+      </div>
+
+      <div class="pwd-card">
+        <div class="pwd-logo">☁️</div>
+        <div class="pwd-info">
+          <div class="pwd-site">腾讯云</div>
+          <div class="pwd-user">admin@spark2.ai</div>
+          <div class="pwd-stars">••••••••••••••••</div>
+        </div>
+        <button class="pwd-copy">⧉</button>
+      </div>
+
+      <div class="pwd-card">
+        <div class="pwd-logo">🏦</div>
+        <div class="pwd-info">
+          <div class="pwd-site">招商银行</div>
+          <div class="pwd-user">尾号 8866</div>
+          <div class="pwd-stars">••••••</div>
+        </div>
+        <button class="pwd-copy">⧉</button>
+      </div>
+
+      <div class="pwd-card">
+        <div class="pwd-logo">📦</div>
+        <div class="pwd-info">
+          <div class="pwd-site">Docker Hub</div>
+          <div class="pwd-user">wq-spark2</div>
+          <div class="pwd-stars">••••••••••</div>
+        </div>
+        <button class="pwd-copy">⧉</button>
+      </div>
+    </div>
+    <button class="pwd-fab">＋</button>
+  </div>
+
+  <!-- ── APP: 视频转录 ── -->
+  <div class="app-screen" id="app-video">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">视频转录</span>
+      <button class="app-hdr-act" style="font-size:16px">📋</button>
+    </div>
+    <div class="app-body" style="padding-bottom:20px">
+      <div class="vid-url-area">
+        <div class="vid-url-lbl">视频链接</div>
+        <div class="vid-url-row">
+          <input class="vid-url-inp" placeholder="粘贴 YouTube / B站 / 本地链接…" />
+          <button class="vid-go">转录</button>
+        </div>
+      </div>
+
+      <div class="vid-progress">
+        <div class="vid-prog-hdr">
+          <div class="vid-prog-ico">⚡</div>
+          <div class="vid-prog-txt">AI 转录中…</div>
+          <div class="vid-prog-pct">62%</div>
+        </div>
+        <div class="vid-prog-bar"><div class="vid-prog-fill"></div></div>
+      </div>
+
+      <div class="vid-result">
+        <div class="vid-r-ttl">
+          <span>AI 摘要</span>
+          <span class="vid-r-copy">复制</span>
+        </div>
+        <div class="vid-r-txt">本视频介绍了边缘计算在个人 AI 助手场景下的应用，重点讨论了 4B 参数模型在低功耗设备上的推理优化方案，以及如何实现离线优先的数据隐私保护...</div>
+      </div>
+
+      <div class="vid-result">
+        <div class="vid-r-ttl">
+          <span>原文转录</span>
+          <span class="vid-r-copy">复制全文</span>
+        </div>
+        <div class="vid-r-txt" style="max-height:100px;overflow-y:auto">大家好，今天我们来聊一下边缘 AI 的落地实践。首先我们看一下为什么要在边缘设备上部署模型，而不是全部放到云端...</div>
+      </div>
+
+      <div class="vid-history-ttl">最近转录</div>
+      <div class="vid-h-item">
+        <div class="vid-h-ico">🎬</div>
+        <div class="vid-h-info">
+          <div class="vid-h-name">LLM 本地部署实战教程</div>
+          <div class="vid-h-meta">YouTube · 32分钟 · 昨天</div>
+        </div>
+      </div>
+      <div class="vid-h-item">
+        <div class="vid-h-ico">🎬</div>
+        <div class="vid-h-info">
+          <div class="vid-h-name">2026 年 AI 硬件趋势</div>
+          <div class="vid-h-meta">B站 · 18分钟 · 4月18日</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: 知识库 ── -->
+  <div class="app-screen" id="app-knowledge">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">PDF 提取</span>
+      <button class="app-hdr-act" style="font-size:16px">🔍</button>
+    </div>
+    <div class="app-body" style="padding-bottom:20px">
+      <div class="kb-ask">
+        <div class="kb-ask-lbl">向知识库提问</div>
+        <div class="kb-ask-row">
+          <input class="kb-ask-inp" placeholder="提问任何内容…" />
+          <button class="kb-ask-btn">↑</button>
+        </div>
+      </div>
+
+      <div class="kb-upload">
+        <span class="kb-upload-ico">📤</span>
+        <div class="kb-upload-ttl">上传文档</div>
+        <div class="kb-upload-sub">支持 PDF、Word、Markdown、网页链接</div>
+      </div>
+
+      <div class="kb-docs-ttl">已索引文档 · 12</div>
+
+      <div class="kb-doc">
+        <div class="kb-doc-ico">📄</div>
+        <div class="kb-doc-info">
+          <div class="kb-doc-name">产品需求文档 v2.0.pdf</div>
+          <div class="kb-doc-meta">48页 · 已索引 · 今天</div>
+        </div>
+        <span class="kb-indexed">✓ 已索引</span>
+      </div>
+
+      <div class="kb-doc">
+        <div class="kb-doc-ico">📊</div>
+        <div class="kb-doc-info">
+          <div class="kb-doc-name">竞品分析报告 Q1.xlsx</div>
+          <div class="kb-doc-meta">12页 · 已索引 · 昨天</div>
+        </div>
+        <span class="kb-indexed">✓ 已索引</span>
+      </div>
+
+      <div class="kb-doc">
+        <div class="kb-doc-ico">📝</div>
+        <div class="kb-doc-info">
+          <div class="kb-doc-name">系统架构设计文档.md</div>
+          <div class="kb-doc-meta">8页 · 已索引 · 4月18日</div>
+        </div>
+        <span class="kb-indexed">✓ 已索引</span>
+      </div>
+
+      <div class="kb-doc">
+        <div class="kb-doc-ico" style="background:rgba(255,110,122,.15)">📑</div>
+        <div class="kb-doc-info">
+          <div class="kb-doc-name">边缘计算白皮书 2026.pdf</div>
+          <div class="kb-doc-meta">96页 · 索引中…</div>
+        </div>
+        <span style="font-size:11px;color:var(--orange);font-weight:700;flex-shrink:0">处理中</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: MBTI 陪伴 ── -->
+  <div class="app-screen" id="app-mbti">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">MBTI 陪伴</span>
+      <button class="app-hdr-act" style="font-size:16px">🔊</button>
+    </div>
+    <div class="app-body" style="padding-bottom:20px">
+      <div class="mbti-comp-card">
+        <div class="mbti-comp-glow"></div>
+        <div class="mbti-comp-top">
+          <div class="mbti-av">🦉</div>
+          <div>
+            <div class="mbti-comp-name">Luna</div>
+            <span class="mbti-type-badge">INFJ</span>
+          </div>
+        </div>
+        <div class="mbti-traits">
+          <span class="mbti-trait">洞察力强</span>
+          <span class="mbti-trait">富有同理心</span>
+          <span class="mbti-trait">深度思考</span>
+          <span class="mbti-trait">善于倾听</span>
+        </div>
+        <div class="mbti-desc">我是 INFJ 型陪伴，擅长深度对话与情感支持。我会倾听你的想法，帮助你从多角度理解问题，在你需要时给予温暖而有洞见的回应。</div>
+        <button class="mbti-change">更换性格类型</button>
+      </div>
+
+      <div class="mbti-chat">
+        <div class="mbti-chat-msgs">
+          <div class="mbti-bubble ai">你好！今天过得怎么样？有什么想聊的吗？</div>
+          <div class="mbti-bubble u">最近项目压力有点大</div>
+          <div class="mbti-bubble ai">我理解，项目压力确实会让人感到紧绷。能告诉我是什么方面让你感觉最难处理吗？是时间紧迫、还是需求不明确，或是别的什么？</div>
+        </div>
+        <div class="mbti-inp-row">
+          <input class="mbti-inp" placeholder="说说你的心情…" />
+          <button class="mbti-send">↑</button>
+        </div>
+      </div>
+
+      <div class="mbti-types-ttl">探索其他性格</div>
+      <div class="mbti-grid">
+        <div class="mbti-cell"><div class="mbti-cell-type">ISTJ</div><div class="mbti-cell-name">检察官</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ISFJ</div><div class="mbti-cell-name">守护者</div></div>
+        <div class="mbti-cell selected"><div class="mbti-cell-type">INFJ</div><div class="mbti-cell-name">提倡者</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">INTJ</div><div class="mbti-cell-name">建筑师</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ISTP</div><div class="mbti-cell-name">鉴赏家</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ISFP</div><div class="mbti-cell-name">探险家</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">INFP</div><div class="mbti-cell-name">调停者</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">INTP</div><div class="mbti-cell-name">逻辑学家</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ESTP</div><div class="mbti-cell-name">企业家</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ESFP</div><div class="mbti-cell-name">表演者</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ENFP</div><div class="mbti-cell-name">竞选者</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ENTP</div><div class="mbti-cell-name">辩论家</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ESTJ</div><div class="mbti-cell-name">总经理</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ESFJ</div><div class="mbti-cell-name">执政官</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ENFJ</div><div class="mbti-cell-name">主人公</div></div>
+        <div class="mbti-cell"><div class="mbti-cell-type">ENTJ</div><div class="mbti-cell-name">指挥官</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: RSS ── -->
+  <div class="app-screen" id="app-rss">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">RSS 订阅</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">📡</div>
+      <div class="dev-ttl">智能资讯订阅</div>
+      <div class="dev-desc">聚合多源 RSS 内容，AI 每日提炼要点，<br>个性化推送你真正关心的信息。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 勋章 ── -->
+  <div class="app-screen" id="app-medal">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">勋章系统</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">🏅</div>
+      <div class="dev-ttl">成就与里程碑</div>
+      <div class="dev-desc">记录生活与工作的成长足迹，<br>解锁专属勋章与称号，见证每一步进步。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 电子宠物 ── -->
+  <div class="app-screen" id="app-pet">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">电子宠物</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">🐣</div>
+      <div class="dev-ttl">AI 专属伙伴</div>
+      <div class="dev-desc">基于你的日常数据养育一只专属 AI 宠物，<br>互动成长，情绪陪伴，个性进化。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 健康趋势 ── -->
+  <div class="app-screen" id="app-health">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">健康趋势</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">💚</div>
+      <div class="dev-ttl">健康数据洞察</div>
+      <div class="dev-desc">整合睡眠、运动、热量与心率数据，<br>AI 分析趋势并给出个性化健康建议。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 相册处理 ── -->
+  <div class="app-screen" id="app-photo">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">相册处理</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">🖼</div>
+      <div class="dev-ttl">AI 相册管理</div>
+      <div class="dev-desc">智能分类、去重、增强与批量导出，<br>本地运行，隐私数据不离设备。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 知识库 (待开发) ── -->
+  <div class="app-screen" id="app-knowledgebase">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">知识库</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">📚</div>
+      <div class="dev-ttl">个人知识库</div>
+      <div class="dev-desc">将文档、链接、笔记统一存储，<br>支持语义检索和 AI 问答，<br>让你的知识真正可用。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 闹钟 (待开发) ── -->
+  <div class="app-screen" id="app-clock">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">闹钟</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">⏰</div>
+      <div class="dev-ttl">智能闹钟</div>
+      <div class="dev-desc">结合睡眠数据与精力感知，<br>在你最佳唤醒窗口轻柔响起，<br>而不是强行打断深度睡眠。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 日历 (待开发) ── -->
+  <div class="app-screen" id="app-calendar">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">日历</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="dev-ph">
+      <div class="dev-ico">📅</div>
+      <div class="dev-ttl">AI 日历助手</div>
+      <div class="dev-desc">自动整合会议纪要、提醒事项<br>与健康数据，智能规划每日时间，<br>为你守住深度工作的时间块。</div>
+      <span class="soon-tag" style="margin-top:18px">开发中</span>
+    </div>
+  </div>
+
+  <!-- ── APP: 个人笔记 ── -->
+  <div class="app-screen" id="app-notes">
+    <div class="app-hdr">
+      <button class="app-back" id="notesBackBtn" onclick="notesBack()">‹</button>
+      <span class="app-hdr-ttl" id="notesHdrTtl">个人笔记</span>
+      <button style="width:32px;height:32px;border:none;background:none;color:var(--accent);font-size:15px;cursor:pointer" onclick="openNote(-1)">✏️</button>
+    </div>
+
+    <div class="notes-wrap">
+      <!-- LIST VIEW -->
+      <div class="notes-list-view" id="notesListView">
+        <div style="position:absolute;top:0;left:0;right:0">
+          <div class="notes-search-wrap">
+            <span class="notes-search-ico">🔍</span>
+            <input class="notes-search" placeholder="搜索笔记…" />
+          </div>
+          <div class="notes-sec">固定笔记</div>
+          <div class="note-row pinned" onclick="openNote(0)">
+            <span class="note-pin-ico">📌</span>
+            <div class="note-body">
+              <div class="note-title">本周计划</div>
+              <div class="note-snippet">完成 MVP 原型设计，整理技术文档，周五与团队对齐</div>
+            </div>
+            <div class="note-meta"><span class="note-date">今天</span><span class="note-chev">›</span></div>
+          </div>
+        </div>
+        <div class="notes-scroll" id="notesScroll" style="top:132px">
+          <div class="notes-sec" style="padding-top:12px">今天</div>
+          <div class="note-row" onclick="openNote(1)">
+            <div class="note-body">
+              <div class="note-title">读书笔记 · 原则</div>
+              <div class="note-snippet"><em>最近在读</em> · 达利欧谈创意择优：把追求真相放在第一位…</div>
+            </div>
+            <div class="note-meta"><span class="note-date">09:31</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="note-row" onclick="openNote(2)">
+            <div class="note-body">
+              <div class="note-title">AI 产品想法</div>
+              <div class="note-snippet">感知页面可以引入「情绪弧线」，用一周的数据绘制…</div>
+            </div>
+            <div class="note-meta"><span class="note-date">08:05</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="notes-sec" style="padding-top:14px">昨天</div>
+          <div class="note-row" onclick="openNote(3)">
+            <div class="note-body">
+              <div class="note-title">健身记录</div>
+              <div class="note-snippet">卧推 60kg × 4 组，深蹲 80kg × 3 组，感觉状态不错</div>
+            </div>
+            <div class="note-meta"><span class="note-date">昨天</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="note-row" onclick="openNote(4)">
+            <div class="note-body">
+              <div class="note-title">购物清单</div>
+              <div class="note-snippet">蛋白粉 ✓ · 维生素C · 燕麦片 · 咖啡豆（深烘）</div>
+            </div>
+            <div class="note-meta"><span class="note-date">昨天</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="notes-sec" style="padding-top:14px">本周</div>
+          <div class="note-row" onclick="openNote(5)">
+            <div class="note-body">
+              <div class="note-title">技术调研 · LLM 推理</div>
+              <div class="note-snippet">vLLM vs TGI 性能对比，量化方案 AWQ/GPTQ 取舍…</div>
+            </div>
+            <div class="note-meta"><span class="note-date">周二</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="note-row" onclick="openNote(6)">
+            <div class="note-body">
+              <div class="note-title">电影清单</div>
+              <div class="note-snippet">《奥本海默》✓ · 《坠落的审判》· 《过往人生》· 《利益区域》</div>
+            </div>
+            <div class="note-meta"><span class="note-date">周一</span><span class="note-chev">›</span></div>
+          </div>
+          <div class="note-row" onclick="openNote(7)">
+            <div class="note-body">
+              <div class="note-title">冥想日记</div>
+              <div class="note-snippet">今天练了 15 分钟呼吸法，思绪比平时安静很多，感觉…</div>
+            </div>
+            <div class="note-meta"><span class="note-date">周日</span><span class="note-chev">›</span></div>
+          </div>
+        </div>
+        <div class="notes-new-bar">
+          <span class="notes-count">8 条笔记</span>
+          <button class="notes-new-btn" onclick="openNote(-1)">✏️</button>
+        </div>
+      </div>
+
+      <!-- DETAIL VIEW -->
+      <div class="notes-detail-view" id="notesDetailView">
+        <div class="notes-detail-hdr" style="justify-content:center">
+          <input class="notes-title-input" id="notesTitleInput" placeholder="标题" />
+        </div>
+        <div class="notes-editor">
+          <div class="notes-date-line" id="notesDateLine"></div>
+          <textarea class="notes-content" id="notesContent" placeholder="开始书写…"></textarea>
+        </div>
+        <div class="notes-fmt-bar">
+          <button class="fmt-btn" title="加粗">𝐁</button>
+          <button class="fmt-btn" title="斜体">𝐼</button>
+          <button class="fmt-btn" title="下划线"><u>U</u></button>
+          <button class="fmt-btn">—</button>
+          <button class="fmt-btn">•</button>
+          <button class="fmt-btn">✓</button>
+          <div style="flex:1"></div>
+          <button class="fmt-btn">⋯</button>
+          <button class="fmt-btn" style="font-size:18px">⌨️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP: 应用开发规范 ── -->
+  <div class="app-screen" id="app-spec">
+    <div class="app-hdr">
+      <button class="app-back" onclick="closeApp()">‹</button>
+      <span class="app-hdr-ttl">开发规范</span>
+      <div id="specDots" style="display:flex;gap:4px;align-items:center;padding-bottom:2px"></div>
+    </div>
+    <div class="spec-scroll" id="specScroll">
+
+      <!-- PAGE 1: 系统概览 -->
+      <div class="spec-page">
+        <div class="spec-ttl">应用开发规范</div>
+        <div class="spec-sub">面向 AI 助手应用的 iOS 风格设计体系，支持深色 / 浅色主题自动切换，以一致的语言传达智能与优雅。</div>
+        <div class="stat-row">
+          <div class="stat-item"><div class="stat-val">13</div><div class="stat-lbl">应用</div></div>
+          <div class="stat-item"><div class="stat-val">5</div><div class="stat-lbl">主面板</div></div>
+          <div class="stat-item"><div class="stat-val">2</div><div class="stat-lbl">主题</div></div>
+          <div class="stat-item"><div class="stat-val">12</div><div class="stat-lbl">变量</div></div>
+        </div>
+        <div class="spec-sttl">设计哲学</div>
+        <div class="ovw-card"><div class="ovw-ico">✦</div><div><div class="ovw-ttl">空间感知导航</div><div class="ovw-desc">五面板世界坐标系统，滑动即位移，无需层级路由栈。</div></div></div>
+        <div class="ovw-card"><div class="ovw-ico">◎</div><div><div class="ovw-ttl">玻璃态设计语言</div><div class="ovw-desc">所有悬浮元素使用 backdrop-filter blur，呈现深度与透明层次感。</div></div></div>
+        <div class="ovw-card"><div class="ovw-ico">⟳</div><div><div class="ovw-ttl">流畅原生动效</div><div class="ovw-desc">cubic-bezier(.32,.72,0,1) 为默认缓动，营造 iOS 原生质感。</div></div></div>
+        <div class="ovw-card"><div class="ovw-ico">◑</div><div><div class="ovw-ttl">主题无感切换</div><div class="ovw-desc">CSS 变量 + prefers-color-scheme 实现深色 / 浅色自动响应。</div></div></div>
+      </div>
+
+      <!-- PAGE 2: 色彩系统 -->
+      <div class="spec-page">
+        <div class="spec-ttl">色彩系统</div>
+        <div class="spec-sub">基于 CSS 自定义属性构建，深色为默认，浅色通过媒体查询覆盖各变量值。</div>
+        <div class="spec-sttl">主题色</div>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#8B72FF"><div class="swatch-name">Accent</div><div class="swatch-hex">#8B72FF</div></div>
+          <div class="swatch" style="background:#5EEAB5"><div class="swatch-name" style="color:rgba(0,0,0,.65)">Teal</div><div class="swatch-hex" style="color:rgba(0,0,0,.45)">#5EEAB5</div></div>
+        </div>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#FFAA5C"><div class="swatch-name" style="color:rgba(0,0,0,.65)">Orange</div><div class="swatch-hex" style="color:rgba(0,0,0,.45)">#FFAA5C</div></div>
+          <div class="swatch" style="background:#FF6E7A"><div class="swatch-name">Red</div><div class="swatch-hex">#FF6E7A</div></div>
+        </div>
+        <div class="spec-sttl">背景层级（深色）</div>
+        <div class="bg-layer-row">
+          <div class="bg-layer" style="background:#07070E"><div class="bg-layer-name" style="color:#ddd">--bg</div><div class="bg-layer-val" style="color:#666">#07070E</div></div>
+          <div class="bg-layer" style="background:#13132A"><div class="bg-layer-name" style="color:#ddd">--card</div><div class="bg-layer-val" style="color:#666">#13132A</div></div>
+          <div class="bg-layer"><div class="bg-layer-name">--s1</div><div class="bg-layer-val">rgba(f,f,f .04)</div></div>
+          <div class="bg-layer" style="background:rgba(255,255,255,.06)"><div class="bg-layer-name">--s2</div><div class="bg-layer-val">rgba(f,f,f .07)</div></div>
+        </div>
+        <div class="spec-sttl">文字层级</div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:14px;color:var(--text)">正文主色 —text</span><code style="font-size:9px;color:var(--text3)">#EEEEF8</code>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text2)">次要色 —text2</span><code style="font-size:9px;color:var(--text3)">rgba .55</code>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0">
+            <span style="font-size:12px;color:var(--text3)">提示色 —text3</span><code style="font-size:9px;color:var(--text3)">rgba .28</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 3: 排版规范 -->
+      <div class="spec-page">
+        <div class="spec-ttl">排版规范</div>
+        <div class="spec-sub">全局字体 Outfit，无衬线现代感，支持 300–800 字重，搭配适度的字间距压缩。</div>
+        <div class="spec-sttl">字号层级</div>
+        <div class="typo-row"><span style="font-size:28px;font-weight:700;color:var(--text);letter-spacing:-.4px">大标题</span><span class="typo-spec">28px / 700</span></div>
+        <div class="typo-row"><span style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.3px">页面标题</span><span class="typo-spec">22px / 700</span></div>
+        <div class="typo-row"><span style="font-size:17px;font-weight:600;color:var(--text)">卡片标题</span><span class="typo-spec">17px / 600</span></div>
+        <div class="typo-row"><span style="font-size:14px;font-weight:500;color:var(--text)">标签文字</span><span class="typo-spec">14px / 500</span></div>
+        <div class="typo-row"><span style="font-size:13px;font-weight:400;color:var(--text)">正文内容</span><span class="typo-spec">13px / 400</span></div>
+        <div class="typo-row"><span style="font-size:12px;color:var(--text2)">次级说明</span><span class="typo-spec">12px / 400</span></div>
+        <div class="typo-row"><span style="font-size:11px;color:var(--text2)">辅助说明</span><span class="typo-spec">11px / 400</span></div>
+        <div class="typo-row"><span style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-weight:600">SECTION LABEL</span><span class="typo-spec">10px / 600 / UC</span></div>
+        <div class="spec-sttl">字重展示</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+          <span style="font-weight:300;color:var(--text2);font-size:13px">Light</span>
+          <span style="font-weight:400;color:var(--text2);font-size:13px">Regular</span>
+          <span style="font-weight:500;color:var(--text);font-size:13px">Medium</span>
+          <span style="font-weight:600;color:var(--text);font-size:13px">SemiBold</span>
+          <span style="font-weight:700;color:var(--text);font-size:13px">Bold</span>
+          <span style="font-weight:800;color:var(--accent);font-size:14px">ExtraBold</span>
+        </div>
+      </div>
+
+      <!-- PAGE 4: 间距·圆角 -->
+      <div class="spec-page">
+        <div class="spec-ttl">间距 · 圆角</div>
+        <div class="spec-sub">以 4px 为基础单位的等比间距体系，搭配语义化的圆角梯度，形成统一的视觉节奏。</div>
+        <div class="spec-sttl">间距比例</div>
+        <div class="space-item"><div class="space-lbl">4</div><div class="space-bar-fill" style="width:8px"></div><div class="space-val">图标间隙</div></div>
+        <div class="space-item"><div class="space-lbl">8</div><div class="space-bar-fill" style="width:16px"></div><div class="space-val">元素间距</div></div>
+        <div class="space-item"><div class="space-lbl">12</div><div class="space-bar-fill" style="width:24px"></div><div class="space-val">卡片内边距</div></div>
+        <div class="space-item"><div class="space-lbl">16</div><div class="space-bar-fill" style="width:32px"></div><div class="space-val">区块间隔</div></div>
+        <div class="space-item"><div class="space-lbl">20</div><div class="space-bar-fill" style="width:40px"></div><div class="space-val">页面边距</div></div>
+        <div class="space-item"><div class="space-lbl">24</div><div class="space-bar-fill" style="width:48px"></div><div class="space-val">大块间隔</div></div>
+        <div class="space-item"><div class="space-lbl">32</div><div class="space-bar-fill" style="width:64px"></div><div class="space-val">章节外边距</div></div>
+        <div class="spec-sttl">圆角比例</div>
+        <div class="radius-grid">
+          <div class="radius-item"><div class="radius-box" style="border-radius:6px"></div><div class="radius-lbl">6px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:8px"></div><div class="radius-lbl">8px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:10px"></div><div class="radius-lbl">10px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:12px"></div><div class="radius-lbl">12px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:14px"></div><div class="radius-lbl">14px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:16px"></div><div class="radius-lbl">16px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:24px"></div><div class="radius-lbl">24px</div></div>
+          <div class="radius-item"><div class="radius-box" style="border-radius:50%"></div><div class="radius-lbl">50%</div></div>
+        </div>
+      </div>
+
+      <!-- PAGE 5: 玻璃态效果 -->
+      <div class="spec-page">
+        <div class="spec-ttl">玻璃态效果</div>
+        <div class="spec-sub">以 backdrop-filter: blur 为核心，搭配半透明背景与细边框，创造层叠感与景深质感。</div>
+        <div class="spec-sttl">效果演示</div>
+        <div class="glass-bg">
+          <div class="glass-demo-card">
+            <div class="glass-dlbl">✦ 玻璃卡片</div>
+            <div class="glass-dsub">backdrop-filter: blur(20px)</div>
+          </div>
+        </div>
+        <div class="spec-sttl">模糊层级</div>
+        <div class="bg-layer-row">
+          <div class="bg-layer"><div class="bg-layer-name">轻</div><div class="bg-layer-val">blur(8px)</div></div>
+          <div class="bg-layer"><div class="bg-layer-name">中</div><div class="bg-layer-val">blur(16px)</div></div>
+          <div class="bg-layer"><div class="bg-layer-name">标准</div><div class="bg-layer-val">blur(20px)</div></div>
+          <div class="bg-layer"><div class="bg-layer-name">强</div><div class="bg-layer-val">blur(30px)</div></div>
+        </div>
+        <div class="spec-sttl">代码模板</div>
+        <div class="code-block"><span class="cc">/* 标准玻璃态卡片 */</span>
+background: <span class="cs">var(--bg-blur)</span>;
+backdrop-filter: <span class="cs">blur(20px)</span>;
+border: <span class="cs">1px solid var(--border2)</span>;
+border-radius: <span class="cs">16px</span>;</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.8">
+          <div style="margin-bottom:5px">⚡ <b style="color:var(--text)">导航栏</b>：--bg-blur + blur(20px)</div>
+          <div style="margin-bottom:5px">⚡ <b style="color:var(--text)">浮层</b>：--s2 + blur(16px) + 阴影</div>
+          <div>⚡ <b style="color:var(--text)">输入框</b>：--s2 + blur(20px) + --border2</div>
+        </div>
+      </div>
+
+      <!-- PAGE 6: 按钮组件 -->
+      <div class="spec-page">
+        <div class="spec-ttl">按钮组件</div>
+        <div class="spec-sub">五种主要按钮变体，覆盖强调、次级、幽灵、成功、危险全场景。圆角 12px 为基准。</div>
+        <div class="spec-sttl">主要变体</div>
+        <div class="btn-demo-wrap">
+          <div class="btn-demo-row">
+            <button class="demo-btn-primary">确认操作</button>
+            <button class="demo-btn-secondary">次级操作</button>
+          </div>
+          <div class="btn-demo-row">
+            <button class="demo-btn-ghost">幽灵按钮</button>
+            <button class="demo-btn-teal">成功操作</button>
+            <button class="demo-btn-danger">危险操作</button>
+          </div>
+        </div>
+        <div class="spec-sttl">图标按钮 · FAB</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="demo-btn-icon">＋</button>
+          <button class="demo-btn-icon">✎</button>
+          <button class="demo-btn-icon">⋯</button>
+          <button class="demo-btn-fab" style="margin-left:10px">＋</button>
+        </div>
+        <div class="spec-sttl">AI Orb 主按钮</div>
+        <div style="display:flex;justify-content:center;padding:10px 0">
+          <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(270deg,#8B72FF,#5EEAB5,#FFAA5C,#FF6E7A,#8B72FF);background-size:400% 400%;animation:orb-gradient 6s ease infinite;box-shadow:0 0 20px rgba(139,114,255,.5);display:flex;align-items:center;justify-content:center;font-size:22px">🎙</div>
+        </div>
+        <div class="spec-sttl">规格说明</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.8">
+          <div>高度：大号 44px · 中号 36px · 小号 30px</div>
+          <div>字重：font-weight 600 统一规范</div>
+          <div>禁用态：opacity 0.4 + cursor: not-allowed</div>
+        </div>
+      </div>
+
+      <!-- PAGE 7: 输入组件 -->
+      <div class="spec-page">
+        <div class="spec-ttl">输入组件</div>
+        <div class="spec-sub">标准输入、搜索栏、开关控件，以统一的玻璃态风格呈现，焦点态使用 --accent 高亮。</div>
+        <div class="spec-sttl">文本输入框</div>
+        <div class="inp-demo-wrap">
+          <input class="demo-inp" placeholder="标准输入框" readonly/>
+          <input class="demo-inp" placeholder="焦点状态" style="border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-s)" readonly/>
+        </div>
+        <div class="spec-sttl">搜索栏</div>
+        <div class="demo-srch-wrap" style="margin-bottom:10px">
+          <span class="demo-srch-ico">🔍</span>
+          <input class="demo-srch" placeholder="搜索…" readonly/>
+        </div>
+        <div class="spec-sttl">开关控件</div>
+        <div class="toggle-row-demo">
+          <div><div class="toggle-text-lbl">AI 智能回复</div><div class="toggle-text-sub">自动处理消息中的任务</div></div>
+          <button class="demo-toggle tog-on" onclick="this.classList.toggle('tog-on');this.classList.toggle('tog-off')"></button>
+        </div>
+        <div class="toggle-row-demo">
+          <div><div class="toggle-text-lbl">通知声音</div><div class="toggle-text-sub">静音模式下不振动</div></div>
+          <button class="demo-toggle tog-off" onclick="this.classList.toggle('tog-on');this.classList.toggle('tog-off')"></button>
+        </div>
+        <div class="toggle-row-demo" style="border:none">
+          <div><div class="toggle-text-lbl">深色主题</div><div class="toggle-text-sub">跟随系统设置</div></div>
+          <button class="demo-toggle tog-on" onclick="this.classList.toggle('tog-on');this.classList.toggle('tog-off')"></button>
+        </div>
+        <div class="spec-sttl">焦点态规范</div>
+        <div class="code-block"><span class="ck">.input</span>:focus {
+  border-color: <span class="cs">var(--accent)</span>;
+  box-shadow: <span class="cs">0 0 0 3px var(--accent-s)</span>;
+}</div>
+      </div>
+
+      <!-- PAGE 8: 标签·徽章 -->
+      <div class="spec-page">
+        <div class="spec-ttl">标签 · 徽章</div>
+        <div class="spec-sub">用于分类、状态展示与信息密度场景的小型标注元素，提供六种语义化颜色变体。</div>
+        <div class="spec-sttl">芯片 / 标签</div>
+        <div class="chip-demo-row">
+          <span class="demo-chip c-solid">选中</span>
+          <span class="demo-chip c-outline">强调</span>
+          <span class="demo-chip c-ghost">默认</span>
+          <span class="demo-chip c-teal">成功</span>
+          <span class="demo-chip c-orange">警告</span>
+          <span class="demo-chip c-red">错误</span>
+        </div>
+        <div class="spec-sttl">分类选择器</div>
+        <div class="chip-demo-row">
+          <span class="demo-chip c-solid">全部</span>
+          <span class="demo-chip c-ghost">工作</span>
+          <span class="demo-chip c-ghost">个人</span>
+          <span class="demo-chip c-ghost">学习</span>
+          <span class="demo-chip c-ghost">健康</span>
+        </div>
+        <div class="spec-sttl">数字徽章</div>
+        <div class="badge-row-demo">
+          <span class="demo-badge b-accent">3</span>
+          <span class="demo-badge b-teal">完成</span>
+          <span class="demo-badge b-red">错误</span>
+          <span class="demo-badge b-orange">待定</span>
+          <span class="demo-badge b-accent">NEW</span>
+        </div>
+        <div class="spec-sttl">状态点</div>
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:6px"><span class="demo-badge b-dot" style="background:var(--teal)"></span><span style="font-size:12px;color:var(--text2)">在线</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span class="demo-badge b-dot" style="background:var(--orange)"></span><span style="font-size:12px;color:var(--text2)">忙碌</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span class="demo-badge b-dot" style="background:var(--red)"></span><span style="font-size:12px;color:var(--text2)">离线</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span class="demo-badge b-dot" style="background:var(--text3)"></span><span style="font-size:12px;color:var(--text2)">未知</span></div>
+        </div>
+        <div class="spec-sttl">状态快捷标签</div>
+        <div class="chip-demo-row">
+          <span style="padding:3px 10px;border-radius:8px;background:rgba(139,114,255,.15);color:var(--accent);font-size:11px;font-weight:600">开发中</span>
+          <span style="padding:3px 10px;border-radius:8px;background:var(--teal-s);color:var(--teal);font-size:11px;font-weight:600">已发布</span>
+          <span style="padding:3px 10px;border-radius:8px;background:rgba(255,170,92,.12);color:var(--orange);font-size:11px;font-weight:600">Beta</span>
+        </div>
+      </div>
+
+      <!-- PAGE 9: 卡片组件 -->
+      <div class="spec-page">
+        <div class="spec-ttl">卡片组件</div>
+        <div class="spec-sub">卡片是内容承载的基本单位，分为标准卡、迷你统计卡、列表项和玻璃悬浮卡四种形态。</div>
+        <div class="spec-sttl">标准内容卡</div>
+        <div class="card-demo">
+          <div class="card-demo-ttl">AI 分析完成</div>
+          <div class="card-demo-sub">产品需求文档 v2.0 已完成摘要提取，识别到 12 个核心功能点。</div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <span class="demo-chip c-teal" style="font-size:11px;padding:3px 9px">查看报告</span>
+            <span class="demo-chip c-ghost" style="font-size:11px;padding:3px 9px">稍后再说</span>
+          </div>
+        </div>
+        <div class="spec-sttl">迷你统计卡</div>
+        <div class="mini-card-row">
+          <div class="mini-card"><div class="mini-card-ico">🔥</div><div class="mini-card-val">1842</div><div class="mini-card-lbl">今日热量</div></div>
+          <div class="mini-card"><div class="mini-card-ico">⏰</div><div class="mini-card-val">3</div><div class="mini-card-lbl">待办事项</div></div>
+          <div class="mini-card"><div class="mini-card-ico">💧</div><div class="mini-card-val">6</div><div class="mini-card-lbl">杯饮水</div></div>
+        </div>
+        <div class="spec-sttl">列表项卡片</div>
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;border-bottom:1px solid var(--border)">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--accent-s);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📄</div>
+            <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--text)">产品需求文档.pdf</div><div style="font-size:11px;color:var(--text3)">2.3 MB · 今天</div></div>
+            <span style="font-size:12px;color:var(--text3)">↓</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 13px">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--teal-s);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📝</div>
+            <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--text)">会议纪要.md</div><div style="font-size:11px;color:var(--text3)">24 KB · 昨天</div></div>
+            <span style="font-size:12px;color:var(--text3)">↓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 10: 动效规范 -->
+      <div class="spec-page">
+        <div class="spec-ttl">动效规范</div>
+        <div class="spec-sub">所有过渡和动画基于语义化的缓动曲线，确保界面感知自然流畅，点击下方球体观察差异。</div>
+        <div class="spec-sttl">缓动曲线演示</div>
+        <div class="m-demo-box">
+          <div class="m-lbl">ios-ease-out（推荐）<span>.32,.72,0,1</span></div>
+          <div class="m-track"><div class="m-ball ease-out"></div></div>
+        </div>
+        <div class="m-demo-box">
+          <div class="m-lbl">spring 弹性<span>.34,1.56,.64,1</span></div>
+          <div class="m-track"><div class="m-ball spring"></div></div>
+        </div>
+        <div class="m-demo-box">
+          <div class="m-lbl">ease-in 入场<span>.55,0,1,.45</span></div>
+          <div class="m-track"><div class="m-ball ease-in"></div></div>
+        </div>
+        <div class="m-demo-box">
+          <div class="m-lbl">linear 匀速<span>linear</span></div>
+          <div class="m-track"><div class="m-ball linear"></div></div>
+        </div>
+        <div class="spec-sttl">时长令牌</div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text)">按钮反馈</span><code style="font-size:10px;color:var(--text3)">120–150ms</code></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text)">面板切换</span><code style="font-size:10px;color:var(--text3)">300ms</code></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text)">应用开启</span><code style="font-size:10px;color:var(--text3)">460ms</code></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:12px;color:var(--text)">Orb 脉动</span><code style="font-size:10px;color:var(--text3)">3000ms</code></div>
+        </div>
+      </div>
+
+      <!-- PAGE 11: 导航结构 -->
+      <div class="spec-page">
+        <div class="spec-ttl">导航结构</div>
+        <div class="spec-sub">「五面板世界坐标」空间导航系统，滑动即位移，主页为中心，应用层叠于 z:250。</div>
+        <div class="spec-sttl">世界坐标系</div>
+        <div class="nav-world">
+          <div class="nc nc-empty"></div>
+          <div class="nc"><div class="ni">🌊</div>感知</div>
+          <div class="nc nc-empty"></div>
+          <div class="nc"><div class="ni">💬</div>对话</div>
+          <div class="nc nc-active"><div class="ni">🏠</div>主页</div>
+          <div class="nc"><div class="ni">📁</div>文件</div>
+          <div class="nc nc-empty"></div>
+          <div class="nc"><div class="ni">⊞</div>应用</div>
+          <div class="nc nc-empty"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:2">
+          <div>↑ 上滑 → 感知面板（390, 0）</div>
+          <div>↓ 下滑 → 应用面板（390, 1688）</div>
+          <div>← 左滑 → 文件面板（780, 844）</div>
+          <div>→ 右滑 → 对话面板（0, 844）</div>
+        </div>
+        <div class="spec-sttl">应用层级叠加</div>
+        <div class="code-block"><span class="ck">.app-screen</span> { <span class="cc">/* z:250, 覆盖 viewport */</span>
+  position: <span class="cs">absolute</span>; inset: <span class="cs">0</span>;
+  z-index: <span class="cs">250</span>;
+  transform: <span class="cs">translateY(100%)</span>;
+  transition: <span class="cs">.46s cubic-bezier(.32,.72,0,1)</span>;
+}<span class="ck">.app-screen.open</span> { transform: <span class="cs">translateY(0)</span>; }</div>
+      </div>
+
+      <!-- PAGE 12: CSS 变量参考 -->
+      <div class="spec-page">
+        <div class="spec-ttl">CSS 变量参考</div>
+        <div class="spec-sub">所有样式通过 CSS 自定义属性统一管理，禁止在组件中硬编码颜色值。</div>
+        <div class="spec-sttl">核心变量</div>
+        <table class="var-table">
+          <tr><td class="vk">--bg</td><td class="vd">页面基础背景色</td></tr>
+          <tr><td class="vk">--bg-blur</td><td class="vd">导航栏模糊背景</td></tr>
+          <tr><td class="vk">--s1/s2/s3</td><td class="vd">表面层级，越大越亮</td></tr>
+          <tr><td class="vk">--card</td><td class="vd">卡片专用背景色</td></tr>
+          <tr><td class="vk">--text/2/3</td><td class="vd">文字三级层次</td></tr>
+          <tr><td class="vk">--accent</td><td class="vd">主强调色（紫）</td></tr>
+          <tr><td class="vk">--accent-s</td><td class="vd">主色半透明背景</td></tr>
+          <tr><td class="vk">--accent-g</td><td class="vd">主色较深透明边框</td></tr>
+          <tr><td class="vk">--teal</td><td class="vd">成功色（青绿）</td></tr>
+          <tr><td class="vk">--orange</td><td class="vd">警告 / 强调色</td></tr>
+          <tr><td class="vk">--red</td><td class="vd">危险 / 错误色</td></tr>
+          <tr><td class="vk">--border/2</td><td class="vd">分隔线 / 控件边框</td></tr>
+        </table>
+        <div class="spec-sttl">主题切换模式</div>
+        <div class="code-block"><span class="ck">:root</span> { <span class="cc">/* 深色默认 */</span>
+  --accent: <span class="cs">#8B72FF</span>;
+  --bg: <span class="cs">#07070E</span>;
+}
+<span class="ck">@media(prefers-color-scheme:light)</span> {
+  :root {
+    --accent: <span class="cs">#6B52F0</span>;
+    --bg: <span class="cs">#F2F2F7</span>;
+  }
+}</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.8">
+          <div>· 颜色必须使用变量，禁止硬编码</div>
+          <div>· 背景层级用 --s1/s2/s3，不用具体色值</div>
+          <div>· 阴影颜色基于 --accent 而非纯黑</div>
+          <div>· 动效缓动统一用 cubic-bezier(.32,.72,0,1)</div>
+        </div>
+      </div>
+
+    </div><!-- .spec-scroll -->
+    <div class="spec-dot-bar" id="specDotBar"></div>
+  </div><!-- #app-spec -->
+
+  <!-- ══════════════════════════════════════
+       VIEWPORT + MAIN PANELS
+  ══════════════════════════════════════ -->
+  <div class="viewport">
+  <div class="panels" id="panels">
+
+    <!-- SENSE (swipe down) -->
+    <div class="panel" id="p-sense">
+      <div class="sense-bg"></div>
+      <div class="sb">
+        <span class="sb-time" id="st-sense">9:41</span>
+        <div class="sb-icons">
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text)"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1.25" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="sense-scroll">
+        <div class="sense-hero">
+          <div class="sense-orb-wrap">
+            <div class="sense-orb-ring"></div>
+            <div class="sense-orb-ring"></div>
+            <div class="sense-orb-inner">
+              <div class="sense-orb-score">6.8</div>
+              <div class="sense-orb-lbl">TODAY</div>
+            </div>
+          </div>
+          <div class="sense-greeting">Nervus 感知中</div>
+          <div class="sense-tagline">今天是周日 · 认知负荷偏高 · 14 个跨应用事件</div>
+        </div>
+
+        <!-- 4 state cards -->
+        <div class="sense-state-row">
+          <div class="sense-state-card">
+            <div class="sense-state-ico">🧠</div>
+            <div class="sense-state-val" style="color:var(--orange)">偏高</div>
+            <div class="sense-state-lbl">认知负荷</div>
+          </div>
+          <div class="sense-state-card">
+            <div class="sense-state-ico">⚡</div>
+            <div class="sense-state-val">61%</div>
+            <div class="sense-state-lbl">体力状态</div>
+          </div>
+          <div class="sense-state-card">
+            <div class="sense-state-ico">😔</div>
+            <div class="sense-state-val">稍疲惫</div>
+            <div class="sense-state-lbl">情绪推断</div>
+          </div>
+          <div class="sense-state-card">
+            <div class="sense-state-ico">💤</div>
+            <div class="sense-state-val">7h22</div>
+            <div class="sense-state-lbl">昨夜睡眠</div>
+          </div>
+        </div>
+
+        <!-- Nervus event stream -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">Nervus 今日事件流</div>
+          <div class="sense-insight-card" style="padding:14px 14px 8px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:10px;letter-spacing:.3px">系统在后台持续运行 · 以下是今天发生的事</div>
+            <div class="stl-item" style="padding:6px 0">
+              <div class="stl-dot" style="width:6px;height:6px;min-width:6px;border:none;background:var(--text3);border-radius:50%;margin-top:4px"></div>
+              <div class="stl-body"><div class="stl-ttl" style="font-size:11.5px">00:14 · 昨夜归档</div><div class="stl-time">识别床头书《原则》→ 更新阅读记录，知识库新建词条</div></div>
+            </div>
+            <div class="stl-item" style="padding:6px 0">
+              <div class="stl-dot" style="width:6px;height:6px;min-width:6px;border:none;background:var(--teal);border-radius:50%;margin-top:4px"></div>
+              <div class="stl-body"><div class="stl-ttl" style="font-size:11.5px">07:23 · 日程预备</div><div class="stl-time">扫描今日日历 → 调取上次评审纪要摘要，已就绪</div></div>
+            </div>
+            <div class="stl-item" style="padding:6px 0">
+              <div class="stl-dot" style="width:6px;height:6px;min-width:6px;border:none;background:var(--orange);border-radius:50%;margin-top:4px"></div>
+              <div class="stl-body"><div class="stl-ttl" style="font-size:11.5px">12:41 · 照片→热量</div><div class="stl-time">午饭照片识别为意大利面 → 自动记录 680 kcal，你什么都没做</div></div>
+            </div>
+            <div class="stl-item" style="padding:6px 0">
+              <div class="stl-dot" style="width:6px;height:6px;min-width:6px;border:none;background:var(--accent);border-radius:50%;margin-top:4px"></div>
+              <div class="stl-body"><div class="stl-ttl" style="font-size:11.5px">16:45 · 会议整合</div><div class="stl-time">录音纪要 + 白板 OCR 时间窗口重叠 → 合并生成完整报告</div></div>
+            </div>
+            <div class="stl-item" style="padding:6px 0;padding-bottom:0">
+              <div class="stl-dot" style="width:6px;height:6px;min-width:6px;border:none;background:var(--red);border-radius:50%;margin-top:4px"></div>
+              <div class="stl-body"><div class="stl-ttl" style="font-size:11.5px">22:15 · 状态感知</div><div class="stl-time">综合 4 个行为信号 → 写入 Context Graph: cognitive.load = "high"</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cognitive load inference -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">认知负荷 · 推断依据</div>
+          <div class="sense-insight-card">
+            <div class="sense-insight-row" style="margin-bottom:8px">
+              <div class="sense-insight-ico" style="color:var(--orange)">📊</div>
+              <div><div class="sense-insight-ttl" style="color:var(--orange)">今日认知负荷：偏高</div><div class="sense-insight-sub">这不是猜测，是行为数据的推断。以下信号触发了判断：</div></div>
+            </div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl" style="font-size:10px;width:80px">消息延迟</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:78%;background:var(--orange)"></div></div><div class="sense-bar-val" style="color:var(--orange)">+38%</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl" style="font-size:10px;width:80px">文档反复</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:60%;background:var(--orange)"></div></div><div class="sense-bar-val" style="color:var(--orange)">6 次</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl" style="font-size:10px;width:80px">会议超时</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:50%;background:var(--red)"></div></div><div class="sense-bar-val" style="color:var(--red)">+60m</div></div>
+            <div class="sense-bar-row" style="margin-bottom:0"><div class="sense-bar-lbl" style="font-size:10px;width:80px">晚饭延迟</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:40%;background:var(--red)"></div></div><div class="sense-bar-val" style="color:var(--red)">-2h</div></div>
+          </div>
+        </div>
+
+        <!-- Energy curve -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">今日精力曲线</div>
+          <div class="sense-insight-card" style="padding:14px">
+            <div class="sense-bar-row"><div class="sense-bar-lbl">07:00</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:55%;background:var(--teal)"></div></div><div class="sense-bar-val">起床</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl">09:00</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:88%;background:linear-gradient(90deg,var(--teal),var(--accent))"></div></div><div class="sense-bar-val">高</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl">11:00</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:90%;background:linear-gradient(90deg,var(--accent),var(--teal))"></div></div><div class="sense-bar-val">峰值</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl">14:00</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:58%;background:var(--orange)"></div></div><div class="sense-bar-val">会议</div></div>
+            <div class="sense-bar-row"><div class="sense-bar-lbl">17:00</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:40%;background:var(--red)"></div></div><div class="sense-bar-val">低谷</div></div>
+            <div class="sense-bar-row" style="margin-bottom:0"><div class="sense-bar-lbl">现在</div><div class="sense-bar-track"><div class="sense-bar-fill" style="width:61%;background:linear-gradient(90deg,var(--orange),var(--accent))"></div></div><div class="sense-bar-val">61%</div></div>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">今日时间线</div>
+          <div class="sense-timeline">
+            <div class="stl-item">
+              <div class="stl-dot hi">🌅</div>
+              <div class="stl-body"><div class="stl-ttl">07:22 起床</div><div class="stl-time">睡眠 7h22m · 深度睡眠 2h14m · REM 1h48m</div></div>
+            </div>
+            <div class="stl-item">
+              <div class="stl-dot" style="background:var(--teal);color:#fff;font-size:9px;line-height:18px;text-align:center">AI</div>
+              <div class="stl-body"><div class="stl-ttl" style="color:var(--teal)">07:23 Nervus 后台就绪</div><div class="stl-time">日历扫描完成 · 会议文档摘要已备好</div></div>
+            </div>
+            <div class="stl-item">
+              <div class="stl-dot hi">📝</div>
+              <div class="stl-body"><div class="stl-ttl">09:06 开始工作</div><div class="stl-time">打开会议纪要 · 上传 3 份文档</div></div>
+            </div>
+            <div class="stl-item">
+              <div class="stl-dot">🎙</div>
+              <div class="stl-body"><div class="stl-ttl">10:00 设计评审（超时 60 分钟）</div><div class="stl-time">录音 + 白板 OCR → 整合纪要已生成</div></div>
+            </div>
+            <div class="stl-item">
+              <div class="stl-dot" style="background:var(--teal);color:#fff;font-size:9px;line-height:18px;text-align:center">AI</div>
+              <div class="stl-body"><div class="stl-ttl" style="color:var(--teal)">12:41 Nervus 自动记录</div><div class="stl-time">午饭照片 → 680 kcal 写入热量 App · 零操作</div></div>
+            </div>
+            <div class="stl-item">
+              <div class="stl-dot">🔥</div>
+              <div class="stl-body"><div class="stl-ttl">14:30 跑步 35 分钟</div><div class="stl-time">消耗约 280 kcal · 今日净摄入 1,172 kcal</div></div>
+            </div>
+            <div class="stl-item" style="padding-bottom:0">
+              <div class="stl-dot" style="background:var(--orange);color:#fff;font-size:9px;line-height:18px;text-align:center">AI</div>
+              <div class="stl-body"><div class="stl-ttl" style="color:var(--orange)">22:15 认知负荷判断完成</div><div class="stl-time">写入 Context Graph: cognitive.load = "high"</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly pattern -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">本周专注规律</div>
+          <div class="sense-insight-card">
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">一</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:72%;background:var(--accent);opacity:.6;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">二</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:55%;background:var(--accent);opacity:.6;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">三</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:80%;background:var(--accent);opacity:.6;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">四</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:63%;background:var(--accent);opacity:.6;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">五</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:40%;background:var(--orange);opacity:.7;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:4px">六</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:30%;background:var(--text3);opacity:.5;border-radius:4px"></div></div></div>
+              <div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--orange);margin-bottom:4px;font-weight:600">日▲</div><div style="height:36px;background:var(--s3);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end"><div style="width:100%;height:61%;background:linear-gradient(0deg,var(--orange),var(--accent));border-radius:4px"></div></div></div>
+            </div>
+            <div style="font-size:11px;color:var(--text2)">今日 61%，低于你的周日均值（78%）—— 认知负荷影响了专注输出</div>
+          </div>
+        </div>
+
+        <!-- Nervus tonight plan -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">Nervus 今夜计划</div>
+          <div class="sense-insight-card">
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">当你入睡后，系统将自动处理：</div>
+            <div class="sense-insight-row" style="margin-bottom:8px">
+              <div class="sense-insight-ico" style="font-size:13px">🗺</div>
+              <div><div class="sense-insight-sub" style="color:var(--text)">处理今日 4 张旅行照片 → 归入「上海之行」线程，生成旅行日志段落</div></div>
+            </div>
+            <div class="sense-insight-row" style="margin-bottom:8px">
+              <div class="sense-insight-ico" style="font-size:13px">📚</div>
+              <div><div class="sense-insight-sub" style="color:var(--text)">更新知识图谱 3 个新节点 → 关联你今天看过的会议文档与书籍笔记</div></div>
+            </div>
+            <div class="sense-insight-row" style="margin-bottom:0">
+              <div class="sense-insight-ico" style="font-size:13px">📅</div>
+              <div><div class="sense-insight-sub" style="color:var(--text)">为明天 10:00 会议备好相关文档摘要 → 打开即用，无需你手动准备</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI recommendations -->
+        <div class="sense-section">
+          <div class="sense-sec-hdr">Nervus 建议</div>
+          <div class="sense-recommend">
+            <div class="sense-rec-ttl">✦ 基于今日行为信号与 Context Graph 推断</div>
+            <div class="sense-rec-item"><span>📅</span><span>明天上午有个可选例会——建议推迟，留出深度工作块。今天认知负荷偏高，明早需要复原。</span></div>
+            <div class="sense-rec-item"><span>🌙</span><span>23 点前入睡可实现最优深度睡眠窗口。预测明早状态分 7.6，比今天改善。</span></div>
+            <div class="sense-rec-item"><span>🧘</span><span>睡前 20 分钟轻松活动优先——今天你的文档反复修改说明决策疲劳，不适合继续工作。</span></div>
+            <div class="sense-rec-item"><span>⚡</span><span>明天 10–11 点精力预测最高，适合放置重要决策。下午 15 点后建议避免高强度会议。</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT (swipe right) -->
+    <div class="panel" id="p-chat">
+      <div class="chat-bg"></div>
+      <div class="sb">
+        <span class="sb-time" id="st-chat">9:41</span>
+        <div class="sb-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="var(--text)"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="9" y=".5" width="3" height="11.5" rx="1" opacity=".85"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text)"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1.25" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="chat-hdr">
+        <div class="chat-av">✦</div>
+        <div>
+          <span class="chat-name">AI 助手</span>
+          <div class="chat-status"><div class="sdot"></div>边缘设备在线 · 4B 模型</div>
+        </div>
+      </div>
+      <div class="msgs" id="msgs">
+        <div class="msg ai">
+          <div class="bubble">早上好。<br><br>你昨晚睡了 <strong>7h22m</strong>，深度睡眠占比良好。我在你睡着之后做了几件事：<br><br>· 识别了你睡前拍的那本书，更新了阅读记录<br>· 扫描今日日历，把上次产品评审的纪要摘要和相关文档准备好了，打开会议纪要即可查看<br><br>今天 <strong>10:00</strong> 有一个设计评审，已就绪。</div>
+          <span class="msg-t">08:14</span>
+        </div>
+        <div class="msg u">
+          <div class="bubble">午饭那张面条照片记录了吗？</div>
+          <span class="msg-t">12:55</span>
+        </div>
+        <div class="msg ai">
+          <div class="bubble">记录了 ✓<br><br>识别为意大利面，自动写入今日热量：<strong>约 680 kcal</strong>。<br><br>今日已摄入 <strong>1,452 kcal</strong><br>剩余预算 <strong style="color:var(--teal)">548 kcal</strong><br><br>你没有做任何操作，只是拍了那张照片。</div>
+          <span class="msg-t">12:55</span>
+        </div>
+        <div class="msg u">
+          <div class="bubble">我好像今天有点累了</div>
+          <span class="msg-t">22:10</span>
+        </div>
+        <div class="msg ai">
+          <div class="bubble">我也注意到了一些信号：<br><br>· 今天消息回复延迟比你均值高 <strong style="color:var(--orange)">38%</strong><br>· 同一份文档被删改了 6 次<br>· 下午的会议超时了近 1 小时<br>· 晚饭延迟了 2 小时<br><br>系统判断今日<strong>认知负荷偏高</strong>——这不是猜测，是行为信号的推断。<br><br>明天上午有个可选的例行会议，是否推迟，留出深度工作块？</div>
+          <span class="msg-t">22:10</span>
+        </div>
+      </div>
+      <div class="chat-inp">
+        <button class="mic-btn">🎙</button>
+        <input class="inp-field" placeholder="输入消息…" id="chatInp"/>
+        <button class="send-btn" onclick="sendMsg()">↑</button>
+      </div>
+    </div>
+
+    <!-- HOME (center) -->
+    <div class="panel" id="p-home">
+      <div class="home-bg"></div>
+      <div class="sb">
+        <span class="sb-time" id="st-home">9:41</span>
+        <div class="sb-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="var(--text)"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="9" y=".5" width="3" height="11.5" rx="1" opacity=".85"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="var(--text)"><path d="M8 2.5C10.5 2.5 12.7 3.6 14.2 5.3L15.5 3.8C13.6 1.8 11 .5 8 .5S2.4 1.8.5 3.8L1.8 5.3C3.3 3.6 5.5 2.5 8 2.5z" opacity=".4"/><path d="M8 6.5c1.7 0 3.2.7 4.3 1.9L13.6 7C12.1 5.4 10.2 4.5 8 4.5S3.9 5.4 2.4 7L3.7 8.4C4.8 7.2 6.3 6.5 8 6.5z" opacity=".7"/><circle cx="8" cy="11" r="1.5"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text)"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1.25" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="hc">
+        <div class="gc">
+          <div class="ai-glow"></div>
+          <div class="ai-hdr">
+            <div class="ai-av">✦</div>
+            <span class="ai-lbl" id="gcLbl">AI 助手 · 今日摘要</span>
+            <div class="ai-dot"></div>
+          </div>
+          <div id="gcContent">
+            <div class="ai-txt" id="gcTxt">
+              下午好，今天跨应用同步了 <strong style="color:var(--accent)">14 次</strong>，有 <strong style="color:var(--teal)">3 张照片</strong>被自动归档，下一个会议在 2 小时后。
+            </div>
+            <div class="stats" id="gcStats">
+              <div class="stat"><span class="stat-n" style="color:var(--accent)">14</span><span class="stat-l">事件同步</span></div>
+              <div class="stat"><span class="stat-n" style="color:var(--teal)">3</span><span class="stat-l">照片归档</span></div>
+              <div class="stat"><span class="stat-n" style="color:var(--orange)">1</span><span class="stat-l">待提醒</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="qrow">
+          <div class="qc" id="qcLeft">
+            <div class="qc-body" id="qcLeftBody">
+              <span class="qc-ico">🧠</span>
+              <div class="qc-ttl">认知负荷</div>
+              <div class="qc-val" style="color:var(--orange)">偏高<br><span style="color:var(--text3);font-size:11px">行为信号推断</span></div>
+              <div class="prog-bar" style="margin-top:10px"><div class="prog-fill" style="width:78%;background:linear-gradient(90deg,var(--orange),var(--red))"></div></div>
+            </div>
+          </div>
+          <div class="qc" id="qcRight">
+            <div class="qc-body" id="qcRightBody">
+              <span class="qc-ico">🔥</span>
+              <div class="qc-ttl">今日热量</div>
+              <div class="qc-val">1,452 kcal<br><span style="color:var(--teal);font-size:11px">剩余 548</span></div>
+              <div class="prog-bar" style="margin-top:10px"><div class="prog-fill" style="width:73%;background:linear-gradient(90deg,var(--orange),var(--red))"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="remind-bar">
+          <div class="remind-ico">📅</div>
+          <div class="remind-body">
+            <div class="remind-t">创建提醒：团队会议</div>
+            <div class="remind-sub">明天 · 15:00 · 确认添加？</div>
+          </div>
+          <button class="confirm-btn" onclick="showNotif()">✓</button>
+        </div>
+      </div>
+      <div class="vbw">
+        <div class="ai-suggests" id="aiSuggests">
+          <button class="ai-sug">📅 设置一个提醒</button>
+          <button class="ai-sug">📄 分析最新文件</button>
+        </div>
+        <div class="orb-zone">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <button class="ai-orb">🎙</button>
+        </div>
+        <div class="orb-hint">长按语音 · 点击文字</div>
+      </div>
+    </div>
+
+    <!-- FILES (swipe left) -->
+    <div class="panel" id="p-files">
+      <div class="fm-bg"></div>
+      <div class="sb">
+        <span class="sb-time" id="st-files">9:41</span>
+        <div class="sb-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="var(--text)"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="9" y=".5" width="3" height="11.5" rx="1" opacity=".85"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text)"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1.25" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="fm-hdr">
+        <div class="fm-av">🗂</div>
+        <div>
+          <div class="fm-ttl">文件管理</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:1px">发送给自己的文件 · 链接 · 文字</div>
+        </div>
+      </div>
+      <div class="fm-search-bar">
+        <div class="fm-search-inner">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="var(--text3)" stroke-width="1.5"/><path d="M11 11L14 14" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input placeholder="搜索文件、链接或文字…"/>
+        </div>
+      </div>
+      <div class="fm-feed">
+        <div class="fm-date-sep">4月16日</div>
+        <div class="fm-row">
+          <div>
+            <div class="fm-link-card">
+              <div class="fm-link-preview b">🐙</div>
+              <div class="fm-link-info">
+                <div class="fm-link-title">GitHub · edge-ai-assistant</div>
+                <div class="fm-link-url">github.com/wangqioo</div>
+              </div>
+            </div>
+            <div class="fm-time">16:08</div>
+          </div>
+        </div>
+
+        <div class="fm-date-sep">4月17日</div>
+        <div class="fm-row">
+          <div>
+            <div class="fm-file-card">
+              <div class="fm-file-ico" style="background:rgba(139,114,255,.15)">🖼</div>
+              <div class="fm-file-body">
+                <div class="fm-file-name">架构图_系统设计_v3.png</div>
+                <div class="fm-file-meta">1.8 MB · PNG 图片</div>
+              </div>
+              <button class="fm-file-open">↓</button>
+            </div>
+            <div class="fm-time">11:23</div>
+          </div>
+        </div>
+
+        <div class="fm-date-sep">4月18日</div>
+        <div class="fm-row">
+          <div>
+            <div class="fm-text-bubble">记得看这份会议纪要，整理了本周所有决议</div>
+            <div class="fm-time">09:05</div>
+          </div>
+        </div>
+        <div class="fm-row" style="margin-top:2px">
+          <div>
+            <div class="fm-file-card">
+              <div class="fm-file-ico" style="background:rgba(94,234,181,.15)">📝</div>
+              <div class="fm-file-body">
+                <div class="fm-file-name">会议纪要_2026-04-18.md</div>
+                <div class="fm-file-meta">24 KB · Markdown</div>
+              </div>
+              <button class="fm-file-open">↓</button>
+            </div>
+            <div class="fm-time">09:06</div>
+          </div>
+        </div>
+
+        <div class="fm-date-sep">昨天</div>
+        <div class="fm-row">
+          <div>
+            <div class="fm-file-card">
+              <div class="fm-file-ico" style="background:rgba(255,170,92,.15)">📑</div>
+              <div class="fm-file-body">
+                <div class="fm-file-name">竞品分析报告.xlsx</div>
+                <div class="fm-file-meta">890 KB · 表格</div>
+              </div>
+              <button class="fm-file-open">↓</button>
+            </div>
+            <div class="fm-time">14:05</div>
+          </div>
+        </div>
+        <div class="fm-row" style="margin-top:2px">
+          <div>
+            <div class="fm-link-card">
+              <div class="fm-link-preview a">📋</div>
+              <div class="fm-link-info">
+                <div class="fm-link-title">Notion · 2026年产品路线图</div>
+                <div class="fm-link-url">notion.so · 共享文档</div>
+              </div>
+            </div>
+            <div class="fm-time">16:20</div>
+          </div>
+        </div>
+        <div class="fm-row" style="margin-top:2px">
+          <div>
+            <div class="fm-file-card">
+              <div class="fm-file-ico" style="background:rgba(255,110,122,.15)">🎬</div>
+              <div class="fm-file-body">
+                <div class="fm-file-name">会议录像_2026Q1复盘.mp4</div>
+                <div class="fm-file-meta">128 MB · 视频</div>
+              </div>
+              <button class="fm-file-open">↓</button>
+            </div>
+            <div class="fm-time">18:44</div>
+          </div>
+        </div>
+
+        <div class="fm-date-sep">今天</div>
+        <div class="fm-row">
+          <div>
+            <div class="fm-img-card">
+              <div class="fm-img-inner a">🖼</div>
+              <div class="fm-img-lbl">UI设计稿_主页面.png · 4.1 MB</div>
+            </div>
+            <div class="fm-time">09:18</div>
+          </div>
+        </div>
+        <div class="fm-row" style="margin-top:2px">
+          <div>
+            <div class="fm-file-card">
+              <div class="fm-file-ico" style="background:rgba(255,110,122,.15)">📄</div>
+              <div class="fm-file-body">
+                <div class="fm-file-name">产品需求文档 v2.0.pdf</div>
+                <div class="fm-file-meta">2.3 MB · PDF 文档</div>
+              </div>
+              <button class="fm-file-open">↓</button>
+            </div>
+            <div class="fm-time">09:32</div>
+          </div>
+        </div>
+      </div>
+      <div class="fm-inp">
+        <button class="mic-btn" style="width:34px;height:34px;font-size:15px;flex-shrink:0">📷</button>
+        <button class="mic-btn" style="width:34px;height:34px;font-size:15px;flex-shrink:0">📎</button>
+        <button class="mic-btn" style="width:34px;height:34px;font-size:15px;flex-shrink:0">🔗</button>
+        <input class="fm-inp-field" placeholder="发送文字给自己…"/>
+        <button class="send-btn" style="width:34px;height:34px;flex-shrink:0" onclick="">↑</button>
+      </div>
+    </div>
+
+    <!-- APPS (swipe up) -->
+    <div class="panel" id="p-apps">
+      <div class="apps-bg"></div>
+      <div class="sb">
+        <span class="sb-time" id="st-apps">9:41</span>
+        <div class="sb-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="var(--text)"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="9" y=".5" width="3" height="11.5" rx="1" opacity=".85"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="var(--text)"><path d="M8 2.5C10.5 2.5 12.7 3.6 14.2 5.3L15.5 3.8C13.6 1.8 11 .5 8 .5S2.4 1.8.5 3.8L1.8 5.3C3.3 3.6 5.5 2.5 8 2.5z" opacity=".4"/><path d="M8 6.5c1.7 0 3.2.7 4.3 1.9L13.6 7C12.1 5.4 10.2 4.5 8 4.5S3.9 5.4 2.4 7L3.7 8.4C4.8 7.2 6.3 6.5 8 6.5z" opacity=".7"/><circle cx="8" cy="11" r="1.5"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text)"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1.25" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="apps-c">
+        <div class="apps-handle"></div>
+        <div class="apps-ttl">应用</div>
+        <div class="agrid">
+          <div class="aitem" onclick="openApp('spec')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(94,234,181,.2),rgba(139,114,255,.12))">📐</div>
+            <span class="aname">开发规范</span>
+          </div>
+          <div class="aitem" onclick="openApp('remind')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,160,50,.22),rgba(220,120,30,.08))">📋<div class="badge">3</div></div>
+            <span class="aname">提醒</span>
+          </div>
+          <div class="aitem" onclick="openApp('clock')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,200,80,.2),rgba(200,150,30,.08))">⏰</div>
+            <span class="aname">闹钟</span>
+          </div>
+          <div class="aitem" onclick="openApp('calendar')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(80,160,255,.2),rgba(40,110,220,.08))">📅</div>
+            <span class="aname">日历</span>
+          </div>
+          <div class="aitem" onclick="openApp('workflow')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(80,180,255,.2),rgba(50,130,220,.08))">⚡</div>
+            <span class="aname">工作流</span>
+          </div>
+          <div class="aitem" onclick="openApp('meeting')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,100,120,.2),rgba(200,60,80,.08))">🎙</div>
+            <span class="aname">会议纪要</span>
+          </div>
+          <div class="aitem" onclick="openApp('knowledge')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(80,220,180,.18),rgba(40,170,140,.07))">📄</div>
+            <span class="aname">PDF 提取</span>
+          </div>
+          <div class="aitem" onclick="openApp('knowledgebase')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(130,100,255,.2),rgba(90,60,200,.08))">📚</div>
+            <span class="aname">知识库</span>
+          </div>
+          <div class="aitem" onclick="openApp('password')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,160,70,.2),rgba(220,120,40,.08))">🔐</div>
+            <span class="aname">密码本</span>
+          </div>
+          <div class="aitem" onclick="openApp('video')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,100,180,.18),rgba(200,60,140,.07))">🎬</div>
+            <span class="aname">视频转录</span>
+          </div>
+          <div class="aitem" onclick="openApp('calorie')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,110,70,.2),rgba(220,70,40,.08))">🔥</div>
+            <span class="aname">热量管理</span>
+          </div>
+          <div class="aitem" onclick="openApp('mbti')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(180,130,255,.2),rgba(130,90,220,.08))">✨</div>
+            <span class="aname">MBTI 陪伴</span>
+          </div>
+          <div class="aitem" onclick="openApp('rss')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(80,200,255,.2),rgba(40,160,220,.08))">📡</div>
+            <span class="aname">RSS 订阅</span>
+          </div>
+          <div class="aitem" onclick="openApp('medal')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,215,0,.22),rgba(200,165,0,.08))">🏅</div>
+            <span class="aname">勋章系统</span>
+          </div>
+          <div class="aitem" onclick="openApp('pet')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,160,200,.2),rgba(210,110,160,.08))">🐣</div>
+            <span class="aname">电子宠物</span>
+          </div>
+          <div class="aitem" onclick="openApp('health')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(80,210,120,.2),rgba(50,170,80,.08))">💚</div>
+            <span class="aname">健康趋势</span>
+          </div>
+          <div class="aitem" onclick="openApp('photo')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(150,120,255,.2),rgba(100,80,210,.08))">🖼</div>
+            <span class="aname">相册处理</span>
+          </div>
+          <div class="aitem" onclick="openApp('notes')">
+            <div class="aico" style="background:linear-gradient(135deg,rgba(255,220,80,.25),rgba(220,170,30,.10))">📝</div>
+            <span class="aname">个人笔记</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .panels -->
+  </div><!-- .viewport -->
+</div><!-- .phone -->
+
+<script>
+const panelEl = document.getElementById('panels');
+const PW = 390, PH = 844;
+const POS = {
+  sense:{x:PW,y:0},
+  chat:{x:0,y:PH},
+  home:{x:PW,y:PH},
+  files:{x:PW*2,y:PH},
+  apps:{x:PW,y:PH*2}
+};
+let current = 'home';
+
+function nav(name) {
+  const p = POS[name];
+  panelEl.style.transform = `translate(${-p.x}px,${-p.y}px)`;
+  current = name;
+}
+
+// Swipe gestures
+let sx=0,sy=0,st=0,dragging=false;
+const phone = document.getElementById('phone');
+const THRESH = 55;
+
+function specGoToPage(dir) {
+  const el = document.getElementById('specScroll');
+  if(!el) return;
+  const cur = Math.round(el.scrollLeft / 390);
+  const next = Math.max(0, Math.min(11, cur + dir));
+  el.scrollTo({left: next * 390, behavior: 'smooth'});
+}
+
+function handleSwipeEnd(dx, dy) {
+  const adx=Math.abs(dx), ady=Math.abs(dy);
+  // When spec app open, horizontal swipes = page navigation (same feel as main nav)
+  if(document.getElementById('app-spec')?.classList.contains('open')) {
+    if(adx > THRESH && adx > ady) specGoToPage(dx < 0 ? 1 : -1);
+    return;
+  }
+  // Ignore if any other app screen is open
+  if(document.querySelector('.app-screen.open')) return;
+  if(adx>THRESH && adx>ady) {
+    if(dx>0){if(current==='home')nav('chat');else if(current==='files')nav('home');}
+    else{if(current==='home')nav('files');else if(current==='chat')nav('home');}
+  } else if(ady>THRESH && ady>adx) {
+    if(dy>0){if(current==='home')nav('sense');else if(current==='apps')nav('home');}
+    else{if(current==='home')nav('apps');else if(current==='sense')nav('home');}
+  }
+}
+
+phone.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now()},{passive:true});
+phone.addEventListener('touchend',e=>{if(Date.now()-st>600)return;handleSwipeEnd(e.changedTouches[0].clientX-sx,e.changedTouches[0].clientY-sy);},{passive:true});
+phone.addEventListener('mousedown',e=>{sx=e.clientX;sy=e.clientY;dragging=true});
+document.addEventListener('mouseup',e=>{if(!dragging)return;dragging=false;handleSwipeEnd(e.clientX-sx,e.clientY-sy);});
+
+// App screens
+function openApp(id) {
+  document.querySelectorAll('.app-screen').forEach(s=>s.classList.remove('open'));
+  const el = document.getElementById('app-'+id);
+  if(el) el.classList.add('open');
+}
+function closeApp() {
+  document.querySelectorAll('.app-screen').forEach(s=>s.classList.remove('open'));
+}
+
+// Popup
+function showPop(){document.getElementById('overlay').classList.add('show')}
+function hidePop(){document.getElementById('overlay').classList.remove('show')}
+function doSave(){hidePop();nav('home')}
+function doAnalyze(){hidePop();nav('home');setTimeout(()=>showNotif(),1800)}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))hidePop()});
+
+// Notification
+function showNotif(){
+  const n=document.getElementById('notif');
+  n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),3800);
+}
+
+// Category chips (multiple groups)
+document.querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    const parent=c.parentElement;
+    parent.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on');
+  });
+});
+
+// Reminder segments
+document.querySelectorAll('.seg').forEach(s=>{
+  s.addEventListener('click',()=>{
+    s.closest('.seg-ctrl').querySelectorAll('.seg').forEach(x=>x.classList.remove('on'));
+    s.classList.add('on');
+  });
+});
+
+// MBTI type cells
+document.querySelectorAll('.mbti-cell').forEach(cell=>{
+  cell.addEventListener('click',()=>{
+    document.querySelectorAll('.mbti-cell').forEach(x=>x.classList.remove('selected'));
+    cell.classList.add('selected');
+  });
+});
+
+// Chat send
+function sendMsg(){
+  const inp=document.getElementById('chatInp');
+  const val=inp.value.trim();
+  if(!val)return;
+  const msgs=document.getElementById('msgs');
+  const now=new Date();
+  const t=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const d=document.createElement('div');
+  d.className='msg u';
+  d.innerHTML=`<div class="bubble">${val}</div><span class="msg-t">${t}</span>`;
+  msgs.appendChild(d);
+  inp.value='';
+  msgs.scrollTop=msgs.scrollHeight;
+  setTimeout(()=>{
+    const r=document.createElement('div');
+    r.className='msg ai';
+    r.innerHTML=`<div class="bubble">好的，我正在处理你的请求…</div><span class="msg-t">${t}</span>`;
+    msgs.appendChild(r);
+    msgs.scrollTop=msgs.scrollHeight;
+  },900);
+}
+document.getElementById('chatInp').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
+
+// Meeting record toggle
+let isRecording = false;
+function toggleRec(){
+  isRecording = !isRecording;
+  const btn = document.getElementById('recBtn');
+  const lbl = document.getElementById('recLabel');
+  const wf = document.getElementById('waveform');
+  if(isRecording){
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+    lbl.textContent = '录音中…';
+    wf.classList.remove('inactive');
+  } else {
+    btn.classList.remove('recording');
+    btn.textContent = '🎙';
+    lbl.textContent = '点击开始录音';
+    wf.classList.add('inactive');
+  }
+}
+
+// Clock
+function updateClock(){
+  const now=new Date();
+  const t=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.querySelectorAll('[id^="st-"]').forEach(el=>el.textContent=t);
+}
+updateClock();
+setInterval(updateClock,30000);
+
+// Notes app
+const notesData = [
+  {title:'本周计划', date:'今天 10:22', content:'本周目标\n\n✦ 完成 MVP 原型设计，覆盖核心 5 个应用\n✦ 整理应用开发规范文档\n✦ 周五下午与团队对齐进度\n\n延伸思考\n能不能把「感知页面」做成一个可分享的 AI 年度报告？用户画像 + 数据可视化，感觉很有意思。\n\n今日专注块\n09:00–11:30 原型开发\n14:00–16:00 文档整理'},
+  {title:'读书笔记 · 原则', date:'今天 09:31', content:'《原则》— 瑞·达利欧\n\n核心观点\n把追求真相放在第一位，而不是面子。\n创意择优 ≠ 民主，而是让最优质的想法胜出。\n\n金句摘录\n「不要让对失败的恐惧妨碍你做出合理的冒险。」\n\n个人反思\n我在做产品决策时，是不是也太在意别人的看法？下次组织评审会，试试用匿名打分的方式。'},
+  {title:'AI 产品想法', date:'今天 08:05', content:'感知页面 v2 构想\n\n情绪弧线功能\n用一周的 AI 感知数据绘制一条折线，横轴时间，纵轴「综合状态指数」。颜色用渐变——平静蓝到焦虑红，视觉上一眼就能看出自己哪天状态最差。\n\n联动想法\n· 如果状态差的那天恰好有重要会议，提前给个提醒\n· 和睡眠数据做交叉分析，找出影响状态的关键因素\n\n下一步\n先做个静态 mockup，下周拿给用户测试。'},
+  {title:'健身记录', date:'昨天 20:14', content:'2026-04-19\n\n胸肩日\n卧推 60kg × 4 组 × 8 次 ✓\n哑铃飞鸟 16kg × 3 组 ✓\n肩推 40kg × 3 组 ✓\n侧平举 8kg × 4 组 ✓\n\n感受\n状态不错，卧推比上周多加了 2.5kg。肩部还是有点弱，下周加一组面拉。\n\n营养\n蛋白质摄入约 168g，达标。睡前加了一杯酪蛋白。'},
+  {title:'购物清单', date:'昨天 15:30', content:'本周采购清单\n\n🛒 健康区\n✅ 乳清蛋白粉（巧克力口味）\n□ 维生素C 1000mg × 60粒\n□ 燕麦片（无糖，散装）\n□ 蓝莓（冷冻）\n\n🛒 咖啡区\n□ 咖啡豆（埃塞深烘，250g）\n✅ 滤纸 × 100张\n\n🛒 日用区\n□ 洗发水（控油款）\n□ 洗衣液'},
+  {title:'技术调研 · LLM 推理', date:'周二 14:20', content:'LLM 推理框架选型\n\nvLLM\n✦ PagedAttention，显存利用率极高\n✦ 支持连续批处理，高并发场景优势明显\n✦ 社区活跃，迭代快\n\nTGI (Text Generation Inference)\n✦ HuggingFace 官方维护，集成度好\n✦ 量化支持完善（GPTQ/AWQ）\n✦ 部署相对简单\n\n量化方案\nAWQ 精度损失更小，推荐 4-bit；GPTQ 更成熟但精度略逊。\n\n结论\n个人项目用 vLLM + AWQ 4bit，生产用 TGI 保稳定。'},
+  {title:'电影清单', date:'周一 21:05', content:'2026 观影计划\n\n✅ 已看\n《奥本海默》— 震撼，三段时间线剪辑绝了\n《坠落的审判》— 比预期好，细节极其扎实\n\n📺 待看（高优先）\n《过往人生》— A24，口碑极好\n《利益区域》— 反战题材，极简风格\n《坠楼死亡的剖析》— 豆瓣 8.4\n\n📺 待看（低优先）\n《石头城》《旺卡》《怪物》\n\n年度总结：已看 18 部，目标 52 部，加油！'},
+  {title:'冥想日记', date:'周日 07:40', content:'2026-04-14 · 清晨冥想\n\n时长：15 分钟\n方法：4-7-8 呼吸法\n状态：⭐⭐⭐⭐\n\n观察\n今天思绪比平时安静很多。前 5 分钟有些杂念，关于周一的会议，之后慢慢平息了。第 12 分钟出现了一次「空白感」，持续了大概 30 秒，很舒服。\n\n感悟\n不要刻意追求「清空大脑」，而是像看云一样，让念头飘过而不抓住它。\n\n明天继续。'},
+];
+function notesBack() {
+  if(document.getElementById('notesDetailView').classList.contains('open')){
+    closeNote();
+  } else {
+    closeApp();
+  }
+}
+function openNote(idx) {
+  const ti = document.getElementById('notesTitleInput');
+  const tc = document.getElementById('notesContent');
+  const dl = document.getElementById('notesDateLine');
+  if(idx >= 0 && idx < notesData.length){
+    const n = notesData[idx];
+    ti.value = n.title;
+    tc.value = n.content;
+    dl.textContent = n.date;
+  } else {
+    ti.value = '';
+    tc.value = '';
+    const now = new Date();
+    dl.textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+  }
+  document.getElementById('notesHdrTtl').textContent = idx >= 0 ? '' : '新建笔记';
+  document.getElementById('notesDetailView').classList.add('open');
+  setTimeout(()=>{ idx < 0 ? ti.focus() : tc.focus(); },420);
+}
+function closeNote() {
+  document.getElementById('notesDetailView').classList.remove('open');
+  document.getElementById('notesHdrTtl').textContent = '个人笔记';
+}
+
+// Demo notification
+setTimeout(()=>{if(current==='home')showNotif();},4000);
+
+// Spec scroll — pointer events routed through unified gesture system
+// handleSwipeEnd above handles page navigation; touch scroll-snap handles mobile
+// The phone mousedown/touchstart already records sx,sy so swipes work identically to main nav
+
+// Spec app dot indicator
+(function(){
+  const specScroll = document.getElementById('specScroll');
+  const dotBar = document.getElementById('specDotBar');
+  const specDots = document.getElementById('specDots');
+  const PAGES = 12;
+  if(!specScroll || !dotBar) return;
+  // Create dots in bottom bar
+  for(let i=0;i<PAGES;i++){
+    const d=document.createElement('div');
+    d.className='sdot'+(i===0?' on':'');
+    dotBar.appendChild(d);
+  }
+  // Create mini dots in header
+  if(specDots){
+    for(let i=0;i<PAGES;i++){
+      const d=document.createElement('div');
+      d.style.cssText='width:4px;height:4px;border-radius:50%;background:'+(i===0?'var(--accent)':'var(--border2)');
+      d.dataset.idx=i;
+      specDots.appendChild(d);
+    }
+  }
+  specScroll.addEventListener('scroll',()=>{
+    const page=Math.round(specScroll.scrollLeft/390);
+    dotBar.querySelectorAll('.sdot').forEach((d,i)=>d.classList.toggle('on',i===page));
+    if(specDots){
+      specDots.querySelectorAll('div').forEach((d,i)=>d.style.background=(i===page?'var(--accent)':'var(--border2)'));
+    }
+  },{passive:true});
+})();
+
+// Rotate AI orb suggestions
+// Orb suggestion chips
+const sugGroups=[
+  ['🔗 帮我存一个链接','📄 分析最新文件'],
+  ['🔥 今日热量还剩多少','🧠 知识库有什么更新'],
+  ['💬 总结一下今天','🎙 开始录制会议'],
+  ['📝 记录一条想法','📅 明天有什么安排'],
+  ['⚡ 工作流现在状态','🌙 今晚几点睡比较好'],
+  ['🗺 整理今天的照片','📊 本周专注情况'],
+];
+let sugIdx=0;
+const sugEl=document.getElementById('aiSuggests');
+if(sugEl){
+  setInterval(()=>{
+    sugIdx=(sugIdx+1)%sugGroups.length;
+    sugEl.style.opacity='0';
+    sugEl.style.transform='translateY(6px)';
+    setTimeout(()=>{
+      sugEl.innerHTML=sugGroups[sugIdx].map(s=>`<button class="ai-sug">${s}</button>`).join('');
+      sugEl.style.opacity='1';
+      sugEl.style.transform='translateY(0)';
+    },280);
+  },4000);
+}
+
+// ── Home module: layered-card animation ──
+// Each card animates independently with different timers
+
+// Shared animation: content lifts back into stack, new content rises from beneath
+function layerSwap(el, updateFn) {
+  el.style.transition = 'transform .28s cubic-bezier(.4,0,.6,1), opacity .26s ease, filter .26s';
+  el.style.transform = 'scale(0.91) translateY(-10px)';
+  el.style.opacity = '0';
+  el.style.filter = 'blur(2px)';
+  setTimeout(() => {
+    el.style.transition = 'none';
+    el.style.transform = 'scale(0.91) translateY(14px)';
+    el.style.filter = 'blur(2px)';
+    updateFn();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transition = 'transform .42s cubic-bezier(.32,.72,0,1), opacity .36s ease, filter .36s';
+      el.style.transform = 'scale(1) translateY(0)';
+      el.style.opacity = '1';
+      el.style.filter = 'blur(0px)';
+    }));
+  }, 300);
+}
+
+// ── MAIN CARD (gc): rotates every 6.2s ──
+const gcStates = [
+  {
+    lbl: 'AI 助手 · 今日摘要',
+    txt: '下午好，今天跨应用同步了 <strong style="color:var(--accent)">14 次</strong>，有 <strong style="color:var(--teal)">3 张照片</strong>被自动归档，知识库新增关联 5 个。',
+    stats: [{n:'14',c:'var(--accent)',l:'事件同步'},{n:'3',c:'var(--teal)',l:'照片归档'},{n:'5',c:'#8B72FF',l:'新关联'}]
+  },
+  {
+    lbl: 'AI 助手 · 昨夜后台',
+    txt: '你睡着后，我识别了床头书《原则》，更新了<strong style="color:var(--teal)">阅读记录</strong>；扫描今日日历，把上次评审纪要备好了——打开会议纪要即用。',
+    stats: [{n:'1',c:'var(--teal)',l:'书籍识别'},{n:'2',c:'var(--accent)',l:'记忆写入'},{n:'1',c:'var(--orange)',l:'日程预备'}]
+  },
+  {
+    lbl: 'AI 助手 · 跨应用联动',
+    txt: '午饭照片 → 自动记录 <strong style="color:var(--orange)">680 kcal</strong>，你没有任何操作；会议录音 + 白板 OCR 时间窗口重叠 → 整合纪要已生成。',
+    stats: [{n:'1',c:'var(--orange)',l:'照片→热量'},{n:'1',c:'var(--accent)',l:'录音+白板'},{n:'偏高',c:'var(--orange)',l:'认知负荷'}]
+  },
+  {
+    lbl: 'AI 助手 · 记忆图谱',
+    txt: '本周关于<strong style="color:var(--accent)">产品设计</strong>的内容累计 12 条，知识大脑自动关联了 5 个新节点；你的专注状态本月排名 <strong style="color:var(--teal)">前 20%</strong>。',
+    stats: [{n:'12',c:'var(--accent)',l:'内容片段'},{n:'5',c:'var(--teal)',l:'新关联'},{n:'前20%',c:'var(--teal)',l:'专注排名'}]
+  },
+  {
+    lbl: 'AI 助手 · 今夜计划',
+    txt: '入睡后我将处理 <strong style="color:var(--teal)">4 张</strong>旅行照片并整合旅行线程，更新 3 个知识图谱节点，为明天 <strong style="color:var(--accent)">10:00 会议</strong>备好文档。',
+    stats: [{n:'4',c:'var(--teal)',l:'待归档照片'},{n:'3',c:'var(--accent)',l:'图谱节点'},{n:'1',c:'#8B72FF',l:'日程预备'}]
+  }
+];
+let gcIdx = 0;
+const gcContent = document.getElementById('gcContent');
+const gcLbl = document.getElementById('gcLbl');
+const gcTxt = document.getElementById('gcTxt');
+const gcStats = document.getElementById('gcStats');
+
+function renderGc(s) {
+  if (!gcLbl || !gcTxt || !gcStats) return;
+  gcLbl.textContent = s.lbl;
+  gcTxt.innerHTML = s.txt;
+  gcStats.innerHTML = s.stats.map(st => `<div class="stat"><span class="stat-n" style="color:${st.c}">${st.n}</span><span class="stat-l">${st.l}</span></div>`).join('');
+}
+
+if (gcContent) {
+  setInterval(() => {
+    gcIdx = (gcIdx + 1) % gcStates.length;
+    layerSwap(gcContent, () => renderGc(gcStates[gcIdx]));
+  }, 6200);
+}
+
+// ── LEFT QUICK CARD: rotates every 7.8s (offset 2.1s) ──
+const qcLeftStates = [
+  { ico:'🧠', ttl:'认知负荷', val:'偏高', valSub:'行为信号推断', valColor:'var(--orange)', prog:'78%', progColor:'linear-gradient(90deg,var(--orange),var(--red))' },
+  { ico:'📅', ttl:'下一个会议', val:'设计评审', valSub:'明天 10:00', valColor:'var(--text)', progColor:'var(--accent)', prog:'22%' },
+  { ico:'🎯', ttl:'今日专注分', val:'61', valSub:'低于周日均值', valColor:'var(--orange)', prog:'61%', progColor:'linear-gradient(90deg,var(--orange),var(--accent))' },
+  { ico:'📝', ttl:'今日笔记', val:'3 条', valSub:'AI 想法 · 冥想日记', valColor:'var(--text)', prog:'45%', progColor:'var(--accent)' },
+];
+let qcLeftIdx = 0;
+const qcLeftBody = document.getElementById('qcLeftBody');
+
+function renderQcLeft(s) {
+  if (!qcLeftBody) return;
+  qcLeftBody.innerHTML = `<span class="qc-ico">${s.ico}</span><div class="qc-ttl">${s.ttl}</div><div class="qc-val" style="color:${s.valColor}">${s.val}<br><span style="color:var(--text3);font-size:11px">${s.valSub}</span></div><div class="prog-bar" style="margin-top:10px"><div class="prog-fill" style="width:${s.prog};background:${s.progColor}"></div></div>`;
+}
+
+setTimeout(() => {
+  if (qcLeftBody) {
+    setInterval(() => {
+      qcLeftIdx = (qcLeftIdx + 1) % qcLeftStates.length;
+      layerSwap(qcLeftBody, () => renderQcLeft(qcLeftStates[qcLeftIdx]));
+    }, 7800);
+  }
+}, 2100);
+
+// ── RIGHT QUICK CARD: rotates every 9.3s (offset 4.6s) ──
+const qcRightStates = [
+  { ico:'🔥', ttl:'今日热量', val:'1,452 kcal', valSub:'剩余 548', valColor:'var(--text)', prog:'73%', progColor:'linear-gradient(90deg,var(--orange),var(--red))' },
+  { ico:'💤', ttl:'昨夜睡眠', val:'7h 22m', valSub:'深度 2h 14m', valColor:'var(--text)', prog:'80%', progColor:'linear-gradient(90deg,var(--teal),var(--accent))' },
+  { ico:'📚', ttl:'知识库更新', val:'+5 关联', valSub:'产品设计主题', valColor:'var(--accent)', prog:'55%', progColor:'linear-gradient(90deg,var(--accent),#8B72FF)' },
+  { ico:'🎙', ttl:'会议纪要', val:'已整合', valSub:'录音 + 白板', valColor:'var(--teal)', prog:'100%', progColor:'var(--teal)' },
+  { ico:'🗺', ttl:'旅行线程', val:'4 张待归档', valSub:'今夜自动处理', valColor:'var(--text)', prog:'30%', progColor:'var(--teal)' },
+];
+let qcRightIdx = 0;
+const qcRightBody = document.getElementById('qcRightBody');
+
+function renderQcRight(s) {
+  if (!qcRightBody) return;
+  qcRightBody.innerHTML = `<span class="qc-ico">${s.ico}</span><div class="qc-ttl">${s.ttl}</div><div class="qc-val" style="color:${s.valColor}">${s.val}<br><span style="color:var(--text3);font-size:11px">${s.valSub}</span></div><div class="prog-bar" style="margin-top:10px"><div class="prog-fill" style="width:${s.prog};background:${s.progColor}"></div></div>`;
+}
+
+setTimeout(() => {
+  if (qcRightBody) {
+    setInterval(() => {
+      qcRightIdx = (qcRightIdx + 1) % qcRightStates.length;
+      layerSwap(qcRightBody, () => renderQcRight(qcRightStates[qcRightIdx]));
+    }, 9300);
+  }
+}, 4600);
+</script>
+</body>
+</html>
