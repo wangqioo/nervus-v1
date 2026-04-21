@@ -11,10 +11,14 @@
 ```
 nervus/
 ├── docker-compose.yml          # 一键启动所有服务
+├── start.sh                    # 分阶段启动脚本（基础设施→Arbor→Apps→Caddy）
+├── Dockerfile.base             # Python 3.12 基础镜像（aarch64/Jetson 专用）
+├── Dockerfile.caddy            # Caddy ARM64 自定义镜像
+├── Dockerfile.postgres         # pgvector 自定义镜像
 ├── nats/                       # NATS 突触总线配置
 ├── redis/                      # Redis Context Graph 配置
 ├── postgres/                   # PostgreSQL Memory Graph 初始化 SQL
-├── caddy/                      # 反向代理配置（局域网 HTTPS）
+├── caddy/                      # 反向代理配置（局域网 HTTPS + HTTP :8900）
 ├── whisper/                    # faster-whisper 语音转写服务
 ├── arbor-core/                 # Nervus 神经路由中枢
 │   ├── router/                 # 快速/语义/动态三种路由引擎
@@ -22,64 +26,74 @@ nervus/
 │   ├── flows/                  # JSON 流程配置
 │   └── api/                    # App 注册、通知、状态 API
 ├── nervus-sdk/                 # Python SDK
-└── nervus-sdk-ts/              # TypeScript SDK
+├── nervus-sdk-ts/              # TypeScript SDK
+├── mobile/                     # 前端（单文件 SPA，已接真实 API）
+│   └── index.html
+└── docs/
+    └── porting-guide.md        # App 移植手册（自包含，无需参考其他文档）
 apps/
 ├── calorie-tracker/            # 热量管理（拍照自动记录）
 ├── meeting-notes/              # 会议纪要（录音+白板自动整合）
 ├── photo-scanner/              # 相册扫描器（感知层）
 ├── knowledge-base/             # 知识库（语义检索+问答）
 ├── life-memory/                # 人生记忆库（旅行日志+时间线）
-└── sense/                      # 感知页数据服务
+├── personal-notes/             # 个人笔记（CRUD + 向量化）
+├── pdf-extractor/              # PDF 解析与知识提取
+├── rss-reader/                 # RSS 阅读器
+├── reminder/                   # 提醒事项
+├── calendar/                   # 日历事件
+├── sense/                      # 感知页数据服务
+├── status-sense/               # 系统状态感知
+├── video-transcriber/          # 视频转写
+└── workflow-viewer/            # 工作流可视化
 ```
 
 ---
 
-## 快速开始
+## 快速开始（Jetson Orin Nano）
 
-### 1. 启动基础设施
+### 1. 克隆并构建
 
 ```bash
-docker compose up -d nats redis postgres caddy
+git clone https://github.com/wangqioo/nervus-core.git nervus
+cd nervus
 ```
 
 ### 2. 准备 AI 模型
 
 ```bash
-# 下载 Qwen3.5-4B 多模态模型到 models/ 目录
 mkdir -p models
-# 从 HuggingFace 下载 qwen3.5-4b-multimodal-q4_k_m.gguf 和 mmproj 文件
+# 下载到 models/ 目录：
+# - qwen3.5-4b-multimodal-q4_k_m.gguf
+# - mmproj-qwen3.5-4b.gguf
 ```
 
-### 3. 启动 AI 服务（Jetson 上）
+### 3. 分阶段启动
 
 ```bash
-# 带 CUDA 加速
-docker compose up -d llama-cpp whisper
+# 方式 A：使用启动脚本（推荐）
+chmod +x start.sh && ./start.sh
 
-# x86 开发机（无 CUDA）
-docker compose --profile dev up -d llama-cpp-dev whisper
+# 方式 B：手动分阶段
+docker compose up -d nats redis postgres
+sleep 10
+docker compose up -d arbor-core
+sleep 5
+docker compose up -d $(docker compose config --services | grep ^app-)
+docker compose up -d caddy llama-cpp whisper
 ```
 
-### 4. 启动 Arbor Core 和所有 App
+### 4. 验证
 
 ```bash
-docker compose up -d arbor-core app-calorie-tracker app-meeting-notes app-photo-scanner app-knowledge-base app-life-memory app-sense
-```
+# 系统总线
+curl http://localhost:8900/api/status
 
-### 5. 验收测试
+# 所有已注册的 App
+curl http://localhost:8900/api/apps/list
 
-```bash
-# AI 服务
-curl http://localhost:8080/health
-
-# NATS 消息总线
-curl http://localhost:8222
-
-# 系统状态
-curl http://localhost:8090/status
-
-# 发布测试事件
-curl -X POST http://localhost:4222 -d '...'
+# 前端
+open http://nervus.local  # 或 http://<device-ip>:8900
 ```
 
 ---
@@ -134,10 +148,20 @@ social.recent_meeting
 
 ---
 
-## 开发新 App（Python）
+## 开发 / 移植新 App
+
+详见 **[docs/porting-guide.md](docs/porting-guide.md)** — 完整移植手册，包含：
+
+- 端口分配表（现有 14 个 App 占用 8001–8014，新 App 从 8015 开始）
+- `main.py` / `Dockerfile` / `requirements.txt` 完整模板
+- `docker-compose.yml` 服务块模板
+- `Caddyfile` 路由模板
+- SDK 速查（LLM / 事件总线 / Context / Memory）
+- 部署命令与验证 Checklist
 
 ```python
-from nervus_sdk import NervusApp, Context, emit
+# 最简示例
+from nervus_sdk import NervusApp, emit
 from nervus_sdk.models import Event
 
 app = NervusApp("my-app")
@@ -145,18 +169,13 @@ app = NervusApp("my-app")
 @app.on("media.photo.classified", filter={"tags_contains": ["food"]})
 async def handle_food(event: Event):
     result = await app.llm.vision(event.payload["photo_path"], "识别食物")
-    await Context.set("physical.last_meal", event.timestamp)
     await emit("health.calorie.meal_logged", result)
 
-@app.action("my_action")
-async def my_action(param: str = "") -> dict:
-    return {"result": param}
+@app._api.get("/items")
+async def list_items():
+    return {"items": []}
 
-@app.state
-async def get_state() -> dict:
-    return {"status": "ok"}
-
-app.run(port=8001)
+app.run(port=8015)
 ```
 
 ---
@@ -170,11 +189,20 @@ app.run(port=8001)
 
 | 组件 | 内存 |
 |---|---|
-| 系统底层 | ~1.5GB |
-| Qwen3.5-4B 多模态 INT4 | ~2.8GB |
-| Redis + PostgreSQL + NATS | ~550MB |
-| Arbor Core + 6 个 App | ~1.2GB |
-| faster-whisper（按需） | ~500MB |
-| **常驻合计** | **~6.3GB** |
-| **峰值（转写中）** | **~6.8GB** |
+| 系统底层 | ~1.5 GB |
+| Qwen3.5-4B 多模态 INT4 | ~2.8 GB |
+| Redis + PostgreSQL + NATS | ~550 MB |
+| Arbor Core + 14 个 App | ~1.5 GB |
+| faster-whisper（按需） | ~500 MB |
+| **常驻合计** | **~6.4 GB** |
+| **峰值（转写中）** | **~6.9 GB** |
 
+---
+
+## 网络访问
+
+| 方式 | 地址 | 说明 |
+|------|------|------|
+| 局域网 HTTPS | `https://nervus.local` | 需要设备已配置 mDNS |
+| 局域网 HTTP | `http://<ip>:8900` | 无需证书，直接访问 |
+| FRP 穿透 | 配置 FRP 转发 8900 端口 | 公网访问 |
