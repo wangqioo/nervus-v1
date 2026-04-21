@@ -1,9 +1,8 @@
-FROM python:3.11-slim
+FROM nervus-python-base:latest
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY nervus-sdk /app/nervus-sdk
 COPY apps/pdf-extractor/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir /app/nervus-sdk
+RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && pip install --no-cache-dir /app/nervus-sdk -i https://pypi.tuna.tsinghua.edu.cn/simple
 COPY apps/pdf-extractor/. .
 RUN mkdir -p /data
 EXPOSE 8008

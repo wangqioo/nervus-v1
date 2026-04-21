@@ -21,7 +21,8 @@ from nervus_sdk.llm import LLMClient
 nervus = NervusApp("calendar")
 
 DB_PATH = os.getenv("DB_PATH", "/data/calendar.db")
-llm = LLMClient()
+LLAMA_URL = os.getenv("LLAMA_URL", "http://nervus-llama:8080")
+llm = LLMClient(LLAMA_URL)
 
 # ── 数据库初始化 ──────────────────────────────────────────
 

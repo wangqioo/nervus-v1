@@ -6,6 +6,8 @@ nats/
 redis/
 caddy/
 postgres/
+!postgres/init.sql
+!postgres/docker-entrypoint.sh
 ios-shell/
 
 # 日志、临时文件

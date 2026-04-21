@@ -1,0 +1,12 @@
+FROM nervus-python-base:latest
+
+RUN curl -fsSL https://github.com/caddyserver/caddy/releases/download/v2.9.1/caddy_2.9.1_linux_arm64.tar.gz \
+    | tar xz -C /usr/local/bin caddy \
+    && chmod +x /usr/local/bin/caddy \
+    && caddy version
+
+RUN mkdir -p /etc/caddy /srv/mobile /data /config
+
+EXPOSE 80 443 2019
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

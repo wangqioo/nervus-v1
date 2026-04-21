@@ -1,541 +1,682 @@
-version: "3.9"
-
-# Nervus — 边缘设备神经系统
-# 目标硬件：NVIDIA Jetson Orin Nano 8GB (JetPack 6.x)
-# 启动：docker compose up -d
-# 内存预算：常驻 ~6.3GB，峰值 ~6.8GB
-
 networks:
   nervus-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/24
-
-volumes:
-  postgres-data:
-  redis-data:
-  nats-data:
-  models-data:
-  whisper-models:
-
+      - subnet: 172.20.0.0/24
 services:
-
-  # ─────────────────────────────────────────────
-  # NATS + JetStream — 突触总线
-  # ~50MB 内存，边缘设备专用消息队列
-  # ─────────────────────────────────────────────
-  nats:
-    image: nats:2.10-alpine
-    container_name: nervus-nats
-    restart: unless-stopped
-    ports:
-      - "4222:4222"   # Client
-      - "8222:8222"   # Monitoring
-    volumes:
-      - nats-data:/data
-      - ./nats/nats-server.conf:/etc/nats/nats-server.conf:ro
-    command: ["-c", "/etc/nats/nats-server.conf"]
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.10
-    healthcheck:
-      test: ["CMD", "nats-server", "--version"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  # Redis — Context Graph（工作记忆）
-  # ~200MB 内存，高频读写用户当下状态
-  # ─────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: nervus-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-      - ./redis/redis.conf:/etc/redis/redis.conf:ro
-    command: ["redis-server", "/etc/redis/redis.conf"]
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.11
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  # PostgreSQL + pgvector — Memory Graph（长期记忆）
-  # ~300MB 内存，结构化存储 + 向量语义检索
-  # ─────────────────────────────────────────────
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: nervus-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: nervus
-      POSTGRES_USER: nervus
-      POSTGRES_PASSWORD: nervus_secret
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.12
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nervus -d nervus"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # ─────────────────────────────────────────────
-  # llama.cpp server — 本地 AI 运行时（常驻）
-  # ~2.8GB 内存，Qwen3.5-4B 多模态 INT4
-  # 兼容 OpenAI API 格式
-  # ─────────────────────────────────────────────
-  llama-cpp:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: nervus-llama
-    restart: unless-stopped
-    runtime: nvidia          # Jetson CUDA 加速（x86 开发时注释掉此行）
-    environment:
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    ports:
-      - "8080:8080"
-    volumes:
-      - models-data:/models
-    command: >
-      --model /models/qwen3.5-4b-multimodal-q4_k_m.gguf
-      --mmproj /models/qwen3.5-4b-multimodal-mmproj.gguf
-      --port 8080
-      --ctx-size 4096
-      --n-gpu-layers 32
-      --parallel 4
-      --host 0.0.0.0
-      --log-disable
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.13
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # llama.cpp (CPU-only 开发模式，x86 无 CUDA 时使用)
-  llama-cpp-dev:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: nervus-llama-dev
-    profiles: ["dev"]        # docker compose --profile dev up
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      - models-data:/models
-    command: >
-      --model /models/qwen3.5-4b-multimodal-q4_k_m.gguf
-      --mmproj /models/qwen3.5-4b-multimodal-mmproj.gguf
-      --port 8080
-      --ctx-size 2048
-      --n-gpu-layers 0
-      --parallel 2
-      --host 0.0.0.0
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.13
-
-  # ─────────────────────────────────────────────
-  # faster-whisper — 语音转写（按需加载）
-  # ~500MB 内存（运行时），用完释放
-  # ─────────────────────────────────────────────
-  whisper:
-    build:
-      context: ./whisper
-      dockerfile: Dockerfile
-    container_name: nervus-whisper
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    volumes:
-      - whisper-models:/models
-    environment:
-      WHISPER_MODEL: medium
-      WHISPER_DEVICE: cuda    # Jetson 上改为 cuda，x86 开发改为 cpu
-      WHISPER_COMPUTE_TYPE: int8
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.14
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8081/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  # Arbor Core — 神经路由中枢
-  # ~200MB 内存，Python FastAPI
-  # ─────────────────────────────────────────────
-  arbor-core:
-    build:
-      context: ./arbor-core
-      dockerfile: Dockerfile
-    container_name: nervus-arbor
-    restart: unless-stopped
-    ports:
-      - "8090:8090"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus
-      LLAMA_URL: http://nervus-llama:8080
-      WHISPER_URL: http://nervus-whisper:8081
-      LOG_LEVEL: info
-    volumes:
-      - ./arbor-core/flows:/app/flows:ro
-    depends_on:
-      nats:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.20
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8090/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  # Caddy — 反向代理（局域网 HTTPS）
-  # ~30MB 内存，自动 TLS 证书
-  # ─────────────────────────────────────────────
-  caddy:
-    image: caddy:2-alpine
-    container_name: nervus-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-certs:/config
-    networks:
-      nervus-net:
-        ipv4_address: 172.20.0.2
-    depends_on:
-      - arbor-core
-
-  # ─────────────────────────────────────────────
-  # Apps — 各应用服务
-  # ─────────────────────────────────────────────
-
-  app-calorie-tracker:
-    build:
-      context: .
-      dockerfile: apps/calorie-tracker/Dockerfile
-    container_name: nervus-app-calorie
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus
-      LLAMA_URL: http://nervus-llama:8080
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8001
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-meeting-notes:
-    build:
-      context: .
-      dockerfile: apps/meeting-notes/Dockerfile
-    container_name: nervus-app-meeting
-    restart: unless-stopped
-    ports:
-      - "8002:8002"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus
-      LLAMA_URL: http://nervus-llama:8080
-      WHISPER_URL: http://nervus-whisper:8081
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8002
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-knowledge-base:
-    build:
-      context: .
-      dockerfile: apps/knowledge-base/Dockerfile
-    container_name: nervus-app-knowledge
-    restart: unless-stopped
-    ports:
-      - "8003:8003"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus
-      LLAMA_URL: http://nervus-llama:8080
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8003
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-life-memory:
-    build:
-      context: .
-      dockerfile: apps/life-memory/Dockerfile
-    container_name: nervus-app-life
-    restart: unless-stopped
-    ports:
-      - "8004:8004"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus
-      LLAMA_URL: http://nervus-llama:8080
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8004
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-sense:
-    build:
-      context: .
-      dockerfile: apps/sense/Dockerfile
-    container_name: nervus-app-sense
-    restart: unless-stopped
-    ports:
-      - "8005:8005"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8005
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-photo-scanner:
-    build:
-      context: .
-      dockerfile: apps/photo-scanner/Dockerfile
-    container_name: nervus-app-photo
-    restart: unless-stopped
-    ports:
-      - "8006:8006"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      LLAMA_URL: http://nervus-llama:8080
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8006
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-personal-notes:
-    build:
-      context: .
-      dockerfile: apps/personal-notes/Dockerfile
-    container_name: nervus-app-notes
-    restart: unless-stopped
-    ports:
-      - "8007:8007"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8007
-      DB_PATH: /data/personal-notes.db
-    volumes:
-      - notes-data:/data
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-pdf-extractor:
-    build:
-      context: .
-      dockerfile: apps/pdf-extractor/Dockerfile
-    container_name: nervus-app-pdf
-    restart: unless-stopped
-    ports:
-      - "8008:8008"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8008
-      DB_PATH: /data/pdf-extractor.db
-    volumes:
-      - pdf-data:/data
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
-  app-video-transcriber:
-    build:
-      context: .
-      dockerfile: apps/video-transcriber/Dockerfile
-    container_name: nervus-app-video
-    restart: unless-stopped
-    ports:
-      - "8009:8009"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      WHISPER_URL: http://nervus-whisper:8081
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8009
-      DB_PATH: /data/video-transcriber.db
-    volumes:
-      - video-data:/data
-    depends_on:
-      - arbor-core
-      - whisper
-    networks:
-      nervus-net:
-
-  app-rss-reader:
-    build:
-      context: .
-      dockerfile: apps/rss-reader/Dockerfile
-    container_name: nervus-app-rss
-    restart: unless-stopped
-    ports:
-      - "8010:8010"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8010
-      DB_PATH: /data/rss-reader.db
-      FETCH_INTERVAL: 3600
-    volumes:
-      - rss-data:/data
-    depends_on:
-      - arbor-core
-    networks:
-      nervus-net:
-
   app-calendar:
     build:
       context: .
       dockerfile: apps/calendar/Dockerfile
     container_name: nervus-app-calendar
-    restart: unless-stopped
-    ports:
-      - "8011:8011"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      LLAMA_URL: http://nervus-llama:8080
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8011
-      DB_PATH: /data/calendar.db
-    volumes:
-      - calendar-data:/data
     depends_on:
-      - arbor-core
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8011
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/calendar.db
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8011/health
+      timeout: 10s
     networks:
-      nervus-net:
-
+      nervus-net: null
+    ports:
+    - 8011:8011
+    restart: unless-stopped
+    volumes:
+    - calendar-data:/data
+    image: nervus-app-calendar:latest
+  app-calorie-tracker:
+    build:
+      context: .
+      dockerfile: apps/calorie-tracker/Dockerfile
+    container_name: nervus-app-calorie
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8001
+      ARBOR_URL: http://nervus-arbor:8090
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8001/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8001:8001
+    restart: unless-stopped
+    image: nervus-app-calorie-tracker:latest
+  app-knowledge-base:
+    build:
+      context: .
+      dockerfile: apps/knowledge-base/Dockerfile
+    container_name: nervus-app-knowledge
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8003
+      ARBOR_URL: http://nervus-arbor:8090
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8003/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8003:8003
+    restart: unless-stopped
+    image: nervus-app-knowledge-base:latest
+  app-life-memory:
+    build:
+      context: .
+      dockerfile: apps/life-memory/Dockerfile
+    container_name: nervus-app-life
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8004
+      ARBOR_URL: http://nervus-arbor:8090
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8004/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8004:8004
+    restart: unless-stopped
+    image: nervus-app-life-memory:latest
+  app-meeting-notes:
+    build:
+      context: .
+      dockerfile: apps/meeting-notes/Dockerfile
+    container_name: nervus-app-meeting
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8002
+      ARBOR_URL: http://nervus-arbor:8090
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+      WHISPER_URL: http://nervus-whisper:8081
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8002/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8002:8002
+    restart: unless-stopped
+    image: nervus-app-meeting-notes:latest
+  app-pdf-extractor:
+    build:
+      context: .
+      dockerfile: apps/pdf-extractor/Dockerfile
+    container_name: nervus-app-pdf
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8008
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/pdf-extractor.db
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8008/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8008:8008
+    restart: unless-stopped
+    volumes:
+    - pdf-data:/data
+    image: nervus-app-pdf-extractor:latest
+  app-personal-notes:
+    build:
+      context: .
+      dockerfile: apps/personal-notes/Dockerfile
+    container_name: nervus-app-notes
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8007
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/personal-notes.db
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8007/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8007:8007
+    restart: unless-stopped
+    volumes:
+    - notes-data:/data
+    image: nervus-app-personal-notes:latest
+  app-photo-scanner:
+    build:
+      context: .
+      dockerfile: apps/photo-scanner/Dockerfile
+    container_name: nervus-app-photo
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8006
+      ARBOR_URL: http://nervus-arbor:8090
+      LLAMA_URL: http://nervus-llama:8080
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8006/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8006:8006
+    restart: unless-stopped
+    image: nervus-app-photo-scanner:latest
   app-reminder:
     build:
       context: .
       dockerfile: apps/reminder/Dockerfile
     container_name: nervus-app-reminder
-    restart: unless-stopped
-    ports:
-      - "8012:8012"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8012
-      DB_PATH: /data/reminder.db
-    volumes:
-      - reminder-data:/data
     depends_on:
-      - arbor-core
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8012
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/reminder.db
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8012/health
+      timeout: 10s
     networks:
-      nervus-net:
-
+      nervus-net: null
+    ports:
+    - 8012:8012
+    restart: unless-stopped
+    volumes:
+    - reminder-data:/data
+    image: nervus-app-reminder:latest
+  app-rss-reader:
+    build:
+      context: .
+      dockerfile: apps/rss-reader/Dockerfile
+    container_name: nervus-app-rss
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8010
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/rss-reader.db
+      FETCH_INTERVAL: 3600
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8010/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8010:8010
+    restart: unless-stopped
+    volumes:
+    - rss-data:/data
+    image: nervus-app-rss-reader:latest
+  app-sense:
+    build:
+      context: .
+      dockerfile: apps/sense/Dockerfile
+    container_name: nervus-app-sense
+    depends_on:
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8005
+      ARBOR_URL: http://nervus-arbor:8090
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8005/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8005:8005
+    restart: unless-stopped
+    image: nervus-app-sense:latest
   app-status-sense:
     build:
       context: .
       dockerfile: apps/status-sense/Dockerfile
     container_name: nervus-app-status-sense
-    restart: unless-stopped
-    ports:
-      - "8013:8013"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8013
-      DB_PATH: /data/status-sense.db
-    volumes:
-      - status-sense-data:/data
     depends_on:
-      - arbor-core
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8013
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/status-sense.db
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8013/health
+      timeout: 10s
     networks:
-      nervus-net:
-
+      nervus-net: null
+    ports:
+    - 8013:8013
+    restart: unless-stopped
+    volumes:
+    - status-sense-data:/data
+    image: nervus-app-status-sense:latest
+  app-video-transcriber:
+    build:
+      context: .
+      dockerfile: apps/video-transcriber/Dockerfile
+    container_name: nervus-app-video
+    depends_on:
+    - arbor-core
+    - whisper
+    entrypoint: []
+    environment:
+      APP_PORT: 8009
+      ARBOR_URL: http://nervus-arbor:8090
+      DB_PATH: /data/video-transcriber.db
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+      WHISPER_URL: http://nervus-whisper:8081
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8009/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8009:8009
+    restart: unless-stopped
+    volumes:
+    - video-data:/data
+    image: nervus-app-video-transcriber:latest
   app-workflow-viewer:
     build:
       context: .
       dockerfile: apps/workflow-viewer/Dockerfile
     container_name: nervus-app-workflow
-    restart: unless-stopped
-    ports:
-      - "8014:8014"
-    environment:
-      NATS_URL: nats://nervus-nats:4222
-      REDIS_URL: redis://nervus-redis:6379
-      ARBOR_URL: http://nervus-arbor:8090
-      APP_PORT: 8014
     depends_on:
-      - arbor-core
+    - arbor-core
+    entrypoint: []
+    environment:
+      APP_PORT: 8014
+      ARBOR_URL: http://nervus-arbor:8090
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8014/health
+      timeout: 10s
     networks:
-      nervus-net:
+      nervus-net: null
+    ports:
+    - 8014:8014
+    restart: unless-stopped
+    image: nervus-app-workflow-viewer:latest
+  arbor-core:
+    build:
+      context: ./arbor-core
+      dockerfile: Dockerfile
+    container_name: nervus-arbor
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    entrypoint: []
+    environment:
+      LLAMA_URL: http://nervus-llama:8080
+      LOG_LEVEL: info
+      NATS_URL: nats://nervus-nats:4222
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      REDIS_URL: redis://nervus-redis:6379
+      WHISPER_URL: http://nervus-whisper:8081
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8090/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8090:8090
+    restart: unless-stopped
+    volumes:
+    - ./arbor-core/flows:/app/flows:ro
+    image: nervus-arbor-core:latest
+  caddy:
+    container_name: nervus-caddy
+    depends_on:
+    - arbor-core
+    entrypoint:
+    - caddy
+    - run
+    - --config
+    - /etc/caddy/Caddyfile
+    - --adapter
+    - caddyfile
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:2019/config/
+      timeout: 10s
+    image: nervus-caddy:latest
+    networks:
+      nervus-net: null
+    ports:
+    - 80:80
+    - 443:443
+    - 8900:8900
+    restart: unless-stopped
+    volumes:
+    - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    - caddy-data:/data
+    - caddy-certs:/config
+    - ./mobile:/srv/mobile:ro
+  llama-cpp:
+    command: '--model /models/Qwen3.5-4B-Q4_K_M.gguf --mmproj /models/mmproj-F16.gguf
+      --port 8080 --ctx-size 4096 --n-gpu-layers 32 --parallel 4 --host 0.0.0.0 --log-disable
 
+      '
+    container_name: nervus-llama
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      NVIDIA_VISIBLE_DEVICES: all
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 60s
+      test:
+      - CMD-SHELL
+      - curl -sf http://localhost:8080/health || exit 1
+      timeout: 10s
+    image: ghcr.io/ggml-org/llama.cpp:server
+    networks:
+      nervus-net: null
+    ports:
+    - 8080:8080
+    restart: unless-stopped
+    runtime: nvidia
+    volumes:
+    - /home/nvidia/models/qwen3.5-4b:/models:ro
+  llama-cpp-dev:
+    command: '--model /models/Qwen3.5-4B-Q4_K_M.gguf --mmproj /models/mmproj-F16.gguf
+      --port 8080 --ctx-size 2048 --n-gpu-layers 0 --parallel 2 --host 0.0.0.0
+
+      '
+    container_name: nervus-llama-dev
+    image: ghcr.io/ggml-org/llama.cpp:server
+    networks:
+      nervus-net: null
+    ports:
+    - 8888:8080
+    profiles:
+    - dev
+    restart: unless-stopped
+    volumes:
+    - /home/nvidia/models/qwen3.5-4b:/models:ro
+  nats:
+    command:
+    - -c
+    - /etc/nats/nats-server.conf
+    container_name: nervus-nats
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test:
+      - CMD
+      - nats-server
+      - --version
+      timeout: 5s
+    image: nats:2.10-alpine
+    networks:
+      nervus-net: null
+    ports:
+    - 4222:4222
+    - 8222:8222
+    restart: unless-stopped
+    volumes:
+    - nats-data:/data
+    - ./nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+  postgres:
+    container_name: nervus-postgres
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: nervus
+      POSTGRES_PASSWORD: nervus_secret
+      POSTGRES_USER: nervus
+    healthcheck:
+      interval: 10s
+      retries: 10
+      test:
+      - CMD-SHELL
+      - pg_isready -U nervus -d nervus
+      timeout: 5s
+    image: nervus-pgvector:pg16
+    networks:
+      nervus-net: null
+    ports:
+    - 5432:5432
+    restart: unless-stopped
+    volumes:
+    - postgres-data:/var/lib/postgresql/data
+    - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  redis:
+    command:
+    - redis-server
+    - /etc/redis/redis.conf
+    container_name: nervus-redis
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      timeout: 3s
+    image: redis:7-alpine
+    networks:
+      nervus-net: null
+    ports:
+    - 6379:6379
+    restart: unless-stopped
+    volumes:
+    - redis-data:/data
+    - ./redis/redis.conf:/etc/redis/redis.conf:ro
+  whisper:
+    build:
+      context: ./whisper
+      dockerfile: Dockerfile
+    container_name: nervus-whisper
+    entrypoint: []
+    environment:
+      HF_ENDPOINT: https://hf-mirror.com
+      WHISPER_COMPUTE_TYPE: int8
+      WHISPER_DEVICE: cpu
+      WHISPER_MODEL: small
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 60s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8081/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8081:8081
+    restart: unless-stopped
+    volumes:
+    - whisper-models:/models
+    image: nervus-whisper:latest
 volumes:
-  caddy-data:
-  caddy-certs:
-  notes-data:
-  pdf-data:
-  video-data:
-  rss-data:
-  calendar-data:
-  reminder-data:
-  status-sense-data:
+  caddy-certs: null
+  caddy-data: null
+  calendar-data: null
+  nats-data: null
+  notes-data: null
+  pdf-data: null
+  postgres-data: null
+  redis-data: null
+  reminder-data: null
+  rss-data: null
+  status-sense-data: null
+  video-data: null
+  whisper-models: null

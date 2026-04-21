@@ -2492,27 +2492,47 @@ document.querySelectorAll('.mbti-cell').forEach(cell=>{
   });
 });
 
-// Chat send
-function sendMsg(){
+// Chat send — real LLM via /api/llm proxy
+async function sendMsg(){
   const inp=document.getElementById('chatInp');
   const val=inp.value.trim();
   if(!val)return;
   const msgs=document.getElementById('msgs');
   const now=new Date();
   const t=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const d=document.createElement('div');
-  d.className='msg u';
-  d.innerHTML=`<div class="bubble">${val}</div><span class="msg-t">${t}</span>`;
-  msgs.appendChild(d);
+  const ud=document.createElement('div');
+  ud.className='msg u';
+  ud.innerHTML=`<div class="bubble">${esc(val)}</div><span class="msg-t">${t}</span>`;
+  msgs.appendChild(ud);
   inp.value='';
   msgs.scrollTop=msgs.scrollHeight;
-  setTimeout(()=>{
-    const r=document.createElement('div');
-    r.className='msg ai';
-    r.innerHTML=`<div class="bubble">好的，我正在处理你的请求…</div><span class="msg-t">${t}</span>`;
-    msgs.appendChild(r);
-    msgs.scrollTop=msgs.scrollHeight;
-  },900);
+  // Thinking bubble
+  const rd=document.createElement('div');
+  rd.className='msg ai';
+  rd.innerHTML=`<div class="bubble" id="llmBubble" style="color:var(--text3)">思考中…</div><span class="msg-t">${t}</span>`;
+  msgs.appendChild(rd);
+  msgs.scrollTop=msgs.scrollHeight;
+  // Context from sense
+  let ctx='你是 Nervus 个人 AI 助手，运行在边缘设备上，请用中文简洁回答（不超过4句话）。';
+  if(window._senseData){
+    const cog=window._senseData.cognitive||{};
+    const phys=window._senseData.physical||{};
+    ctx+=`当前用户：认知负荷${cog.label||'正常'}，睡眠${phys.sleep_last_night||0}h，热量剩余${phys.calorie_remaining||0}kcal。`;
+  }
+  try{
+    const res=await fetch('/api/llm/v1/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'qwen3.5',messages:[{role:'system',content:ctx},{role:'user',content:val}],
+        max_tokens:256,temperature:0.5,chat_template_kwargs:{enable_thinking:false},stream:false})
+    });
+    const data=await res.json();
+    const reply=data?.choices?.[0]?.message?.content||'抱歉，暂时无法回答。';
+    document.getElementById('llmBubble').textContent=reply;
+    document.getElementById('llmBubble').style.color='';
+  }catch(e){
+    document.getElementById('llmBubble').textContent='网络异常，请稍后重试。';
+  }
+  msgs.scrollTop=msgs.scrollHeight;
 }
 document.getElementById('chatInp').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
 
@@ -2545,50 +2565,393 @@ function updateClock(){
 updateClock();
 setInterval(updateClock,30000);
 
-// Notes app
-const notesData = [
-  {title:'本周计划', date:'今天 10:22', content:'本周目标\n\n✦ 完成 MVP 原型设计，覆盖核心 5 个应用\n✦ 整理应用开发规范文档\n✦ 周五下午与团队对齐进度\n\n延伸思考\n能不能把「感知页面」做成一个可分享的 AI 年度报告？用户画像 + 数据可视化，感觉很有意思。\n\n今日专注块\n09:00–11:30 原型开发\n14:00–16:00 文档整理'},
-  {title:'读书笔记 · 原则', date:'今天 09:31', content:'《原则》— 瑞·达利欧\n\n核心观点\n把追求真相放在第一位，而不是面子。\n创意择优 ≠ 民主，而是让最优质的想法胜出。\n\n金句摘录\n「不要让对失败的恐惧妨碍你做出合理的冒险。」\n\n个人反思\n我在做产品决策时，是不是也太在意别人的看法？下次组织评审会，试试用匿名打分的方式。'},
-  {title:'AI 产品想法', date:'今天 08:05', content:'感知页面 v2 构想\n\n情绪弧线功能\n用一周的 AI 感知数据绘制一条折线，横轴时间，纵轴「综合状态指数」。颜色用渐变——平静蓝到焦虑红，视觉上一眼就能看出自己哪天状态最差。\n\n联动想法\n· 如果状态差的那天恰好有重要会议，提前给个提醒\n· 和睡眠数据做交叉分析，找出影响状态的关键因素\n\n下一步\n先做个静态 mockup，下周拿给用户测试。'},
-  {title:'健身记录', date:'昨天 20:14', content:'2026-04-19\n\n胸肩日\n卧推 60kg × 4 组 × 8 次 ✓\n哑铃飞鸟 16kg × 3 组 ✓\n肩推 40kg × 3 组 ✓\n侧平举 8kg × 4 组 ✓\n\n感受\n状态不错，卧推比上周多加了 2.5kg。肩部还是有点弱，下周加一组面拉。\n\n营养\n蛋白质摄入约 168g，达标。睡前加了一杯酪蛋白。'},
-  {title:'购物清单', date:'昨天 15:30', content:'本周采购清单\n\n🛒 健康区\n✅ 乳清蛋白粉（巧克力口味）\n□ 维生素C 1000mg × 60粒\n□ 燕麦片（无糖，散装）\n□ 蓝莓（冷冻）\n\n🛒 咖啡区\n□ 咖啡豆（埃塞深烘，250g）\n✅ 滤纸 × 100张\n\n🛒 日用区\n□ 洗发水（控油款）\n□ 洗衣液'},
-  {title:'技术调研 · LLM 推理', date:'周二 14:20', content:'LLM 推理框架选型\n\nvLLM\n✦ PagedAttention，显存利用率极高\n✦ 支持连续批处理，高并发场景优势明显\n✦ 社区活跃，迭代快\n\nTGI (Text Generation Inference)\n✦ HuggingFace 官方维护，集成度好\n✦ 量化支持完善（GPTQ/AWQ）\n✦ 部署相对简单\n\n量化方案\nAWQ 精度损失更小，推荐 4-bit；GPTQ 更成熟但精度略逊。\n\n结论\n个人项目用 vLLM + AWQ 4bit，生产用 TGI 保稳定。'},
-  {title:'电影清单', date:'周一 21:05', content:'2026 观影计划\n\n✅ 已看\n《奥本海默》— 震撼，三段时间线剪辑绝了\n《坠落的审判》— 比预期好，细节极其扎实\n\n📺 待看（高优先）\n《过往人生》— A24，口碑极好\n《利益区域》— 反战题材，极简风格\n《坠楼死亡的剖析》— 豆瓣 8.4\n\n📺 待看（低优先）\n《石头城》《旺卡》《怪物》\n\n年度总结：已看 18 部，目标 52 部，加油！'},
-  {title:'冥想日记', date:'周日 07:40', content:'2026-04-14 · 清晨冥想\n\n时长：15 分钟\n方法：4-7-8 呼吸法\n状态：⭐⭐⭐⭐\n\n观察\n今天思绪比平时安静很多。前 5 分钟有些杂念，关于周一的会议，之后慢慢平息了。第 12 分钟出现了一次「空白感」，持续了大概 30 秒，很舒服。\n\n感悟\n不要刻意追求「清空大脑」，而是像看云一样，让念头飘过而不抓住它。\n\n明天继续。'},
-];
-function notesBack() {
-  if(document.getElementById('notesDetailView').classList.contains('open')){
-    closeNote();
-  } else {
-    closeApp();
-  }
+// Notes app — real API
+let _realNotes=[];
+function notesBack(){
+  if(document.getElementById('notesDetailView').classList.contains('open')){closeNote();}else{closeApp();}
 }
-function openNote(idx) {
-  const ti = document.getElementById('notesTitleInput');
-  const tc = document.getElementById('notesContent');
-  const dl = document.getElementById('notesDateLine');
-  if(idx >= 0 && idx < notesData.length){
-    const n = notesData[idx];
-    ti.value = n.title;
-    tc.value = n.content;
-    dl.textContent = n.date;
-  } else {
-    ti.value = '';
-    tc.value = '';
-    const now = new Date();
-    dl.textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+async function loadRealNotes(){
+  const data=await nervusAPI('/notes/notes');
+  _realNotes=data?.notes||[];
+  renderNotesList();
+}
+function noteRelDate(iso){
+  if(!iso)return'';
+  const d=new Date(iso),now=new Date(),diff=now-d;
+  if(diff<86400000)return'今天';
+  if(diff<172800000)return'昨天';
+  const days=['日','一','二','三','四','五','六'];
+  if(diff<604800000)return'周'+days[d.getDay()];
+  return`${d.getMonth()+1}月${d.getDate()}日`;
+}
+function renderNotesList(){
+  const scroll=document.getElementById('notesScroll');
+  const pinnedRow=document.querySelector('.note-row.pinned');
+  const pinned=_realNotes.filter(n=>n.is_pinned);
+  const unpinned=_realNotes.filter(n=>!n.is_pinned);
+  if(pinnedRow){
+    if(pinned.length>0){
+      const p=pinned[0];
+      pinnedRow.onclick=()=>openNoteById(p.note_id);
+      pinnedRow.querySelector('.note-title').textContent=p.title||'无标题';
+      pinnedRow.querySelector('.note-snippet').textContent=(p.content||'').slice(0,55);
+      pinnedRow.style.display='';
+    }else{pinnedRow.style.display='none';}
   }
-  document.getElementById('notesHdrTtl').textContent = idx >= 0 ? '' : '新建笔记';
+  if(!scroll)return;
+  if(_realNotes.length===0){
+    scroll.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">暂无笔记<br>点击右上角 + 新建</div>';
+    return;
+  }
+  const groups={};
+  unpinned.forEach(n=>{
+    const lbl=noteRelDate(n.updated_at||n.created_at);
+    (groups[lbl]=groups[lbl]||[]).push(n);
+  });
+  let html='';
+  for(const[lbl,notes]of Object.entries(groups)){
+    html+=`<div class="notes-sec" style="padding-top:12px">${lbl}</div>`;
+    notes.forEach(n=>{
+      html+=`<div class="note-row" onclick="openNoteById('${n.note_id}')">
+        <div class="note-body"><div class="note-title">${esc(n.title||'无标题')}</div>
+        <div class="note-snippet">${esc((n.content||'').slice(0,50))}</div></div>
+        <div class="note-meta"><span class="note-date">${noteRelDate(n.updated_at||n.created_at)}</span><span class="note-chev">›</span></div></div>`;
+    });
+  }
+  scroll.innerHTML=html;
+}
+function openNoteById(noteId){
+  const n=_realNotes.find(x=>x.note_id===noteId)||null;
+  const ti=document.getElementById('notesTitleInput');
+  const tc=document.getElementById('notesContent');
+  const dl=document.getElementById('notesDateLine');
+  if(n){
+    ti.value=n.title||'';tc.value=n.content||'';
+    const d=new Date(n.updated_at||n.created_at);
+    dl.textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    ti.dataset.noteId=noteId;
+  }else{
+    ti.value='';tc.value='';
+    const now=new Date();
+    dl.textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+    ti.dataset.noteId='';
+  }
+  document.getElementById('notesHdrTtl').textContent=n?'':'新建笔记';
   document.getElementById('notesDetailView').classList.add('open');
-  setTimeout(()=>{ idx < 0 ? ti.focus() : tc.focus(); },420);
+  setTimeout(()=>{n?tc.focus():ti.focus();},420);
 }
-function closeNote() {
+function openNote(idx){
+  if(_realNotes.length>0){
+    if(typeof idx==='number'&&idx>=0&&idx<_realNotes.length)openNoteById(_realNotes[idx].note_id);
+    else openNoteById(null);
+  }else{openNoteById(null);}
+}
+async function saveCurrentNote(){
+  const ti=document.getElementById('notesTitleInput');
+  const tc=document.getElementById('notesContent');
+  const noteId=ti.dataset.noteId;
+  const title=ti.value.trim(),content=tc.value.trim();
+  if(!title&&!content)return;
+  if(noteId){
+    await fetch('/api/notes/notes/'+noteId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,tags:[]})});
+  }else{
+    await nervusAPI('/notes/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,tags:[]})});
+  }
+  ti.dataset.noteId='';
+  await loadRealNotes();
+  closeNote();
+}
+function closeNote(){
   document.getElementById('notesDetailView').classList.remove('open');
-  document.getElementById('notesHdrTtl').textContent = '个人笔记';
+  document.getElementById('notesHdrTtl').textContent='个人笔记';
 }
 
-// Demo notification
-setTimeout(()=>{if(current==='home')showNotif();},4000);
+// ── NERVUS API LAYER ─────────────────────────────────────────────────
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+async function nervusAPI(path,opts){
+  try{const r=await fetch('/api'+path,opts);if(!r.ok)return null;return r.json();}
+  catch{return null;}
+}
+function fmtT(iso){if(!iso)return'';const d=new Date(iso);return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});}
+function fmtRelDate(iso){
+  if(!iso)return'';const d=new Date(iso),now=new Date(),diff=now-d;
+  if(diff<86400000)return'今天';if(diff<172800000)return'昨天';
+  const days=['周日','周一','周二','周三','周四','周五','周六'];
+  if(diff<604800000)return days[d.getDay()];
+  return`${d.getMonth()+1}月${d.getDate()}日`;
+}
+function relTime(iso){
+  if(!iso)return'';const diff=new Date(iso)-Date.now(),abs=Math.abs(diff);
+  if(abs<60000)return'刚刚';
+  if(abs<3600000)return Math.round(abs/60000)+'分钟'+(diff>0?'后':'前');
+  if(abs<86400000)return Math.round(abs/3600000)+'小时'+(diff>0?'后':'前');
+  return Math.round(abs/86400000)+'天'+(diff>0?'后':'前');
+}
+
+// ── HOME: Load real data ──────────────────────────────────────────────
+window._senseData=null;
+async function initRealData(){
+  const[calorie,events,reminders,sense]=await Promise.all([
+    nervusAPI('/calorie/today'),
+    nervusAPI('/calendar/events/today'),
+    nervusAPI('/reminder/upcoming'),
+    nervusAPI('/sense/user-state'),
+  ]);
+  const cog=sense?.cognitive||{},phys=sense?.physical||{},temp=sense?.temporal||{};
+  const evts=events?.events||[],rems=reminders?.reminders||[];
+  const cal=calorie||{total_calories:0,budget:2000,remaining:2000};
+  window._senseData=sense;
+
+  // Main card
+  gcStates[0]={
+    lbl:'AI 助手 · 今日摘要',
+    txt:`今天热量摄入 <strong style="color:var(--orange)">${cal.total_calories} kcal</strong>，还剩 <strong style="color:var(--teal)">${cal.remaining}</strong>；${evts.length>0?`今日首个日程：<strong style="color:var(--accent)">${esc(evts[0].title)}</strong>`:'今天暂无日程'}。`,
+    stats:[{n:String(cal.total_calories),c:'var(--orange)',l:'已摄入kcal'},{n:String(evts.length),c:'var(--accent)',l:'今日日程'},{n:String(rems.length),c:'var(--teal)',l:'待提醒'}]
+  };
+  renderGc(gcStates[0]);
+
+  // Left card: cognitive
+  const cogScore=Math.round((cog.score||0.5)*100);
+  const cogLabel=cog.label||'正常';
+  const cogColor=cog.load==='high'?'var(--red)':cog.load==='medium'?'var(--orange)':'var(--teal)';
+  const cogBar=cog.load==='high'?'linear-gradient(90deg,var(--orange),var(--red))':cog.load==='medium'?'linear-gradient(90deg,var(--orange),var(--accent))':'var(--teal)';
+  qcLeftStates[0]={ico:'🧠',ttl:'认知负荷',val:cogLabel,valSub:`负荷 ${cogScore}%`,valColor:cogColor,prog:cogScore+'%',progColor:cogBar};
+  renderQcLeft(qcLeftStates[0]);
+
+  // Right card: calorie
+  const pct=Math.min(100,Math.round(cal.total_calories/cal.budget*100));
+  qcRightStates[0]={ico:'🔥',ttl:'今日热量',val:cal.total_calories+' kcal',valSub:'剩余 '+cal.remaining,valColor:'var(--text)',prog:pct+'%',progColor:'linear-gradient(90deg,var(--orange),var(--red))'};
+  renderQcRight(qcRightStates[0]);
+
+  // Remind bar
+  const remBar=document.querySelector('.remind-bar');
+  if(remBar){
+    if(rems.length>0){
+      const r=rems[0];
+      remBar.querySelector('.remind-t').textContent=r.title;
+      remBar.querySelector('.remind-sub').textContent=relTime(r.remind_at);
+    }else if(evts.length>0){
+      const e=evts[0];
+      remBar.querySelector('.remind-t').textContent=e.title;
+      remBar.querySelector('.remind-sub').textContent=fmtT(e.start_time);
+    }else{
+      remBar.querySelector('.remind-t').textContent='暂无提醒';
+      remBar.querySelector('.remind-sub').textContent='一切平静';
+    }
+  }
+
+  // Sense panel
+  updateSensePanel(sense,temp);
+
+  // Load app data
+  await loadRealNotes();
+}
+
+// ── SENSE PANEL ─────────────────────────────────────────────────────
+function updateSensePanel(sense,temp){
+  if(!sense)return;
+  const cog=sense.cognitive||{},phys=sense.physical||{};
+  const scoreEl=document.querySelector('.sense-orb-score');
+  if(scoreEl)scoreEl.textContent=((cog.score||0.5)*10).toFixed(1);
+  const tagEl=document.querySelector('.sense-tagline');
+  if(tagEl){
+    const day=temp?.day_type==='workday'?'工作日':'休息日';
+    tagEl.textContent=`今天是${day} · 认知负荷${cog.label||'正常'} · Nervus 实时感知中`;
+  }
+  const stateCards=document.querySelectorAll('.sense-state-card');
+  const cards=[
+    {ico:'🧠',val:cog.label||'正常',lbl:'认知负荷'},
+    {ico:'⚡',val:Math.round((cog.score||0.5)*100)+'%',lbl:'能量'},
+    {ico:'💤',val:phys.sleep_last_night?phys.sleep_last_night+'h':'--',lbl:'睡眠'},
+    {ico:'🔥',val:phys.calorie_remaining?phys.calorie_remaining+' kcal':'--',lbl:'剩余热量'},
+  ];
+  stateCards.forEach((el,i)=>{
+    if(!cards[i])return;
+    const ico=el.querySelector('.sense-state-ico'),val=el.querySelector('.sense-state-val'),lbl=el.querySelector('.sense-state-lbl');
+    if(ico)ico.textContent=cards[i].ico;
+    if(val)val.textContent=cards[i].val;
+    if(lbl)lbl.textContent=cards[i].lbl;
+  });
+}
+
+// ── openApp: load real data when app opens ───────────────────────────
+const _origOpenApp=openApp;
+window.openApp=function(id){
+  _origOpenApp(id);
+  if(id==='notes')loadRealNotes();
+  if(id==='remind')populateRemindApp();
+  if(id==='calendar')populateCalendarApp();
+  if(id==='calorie')populateCalorieApp();
+  if(id==='rss')populateRssApp();
+  if(id==='knowledge')populateKnowledgeApp();
+  if(id==='meeting')populateMeetingApp();
+};
+
+// ── REMINDER APP ─────────────────────────────────────────────────────
+async function populateRemindApp(){
+  const app=document.getElementById('app-remind');if(!app)return;
+  const data=await nervusAPI('/reminder/upcoming');
+  const rems=data?.reminders||[];
+  // Find list container — look for the section with reminder items
+  const items=app.querySelectorAll('[class*="rem-item"],[class*="remind-item"],[class*="ri-"]');
+  const container=items.length?items[0].parentElement:app.querySelector('[class*="rem-list"],[class*="scroll"]');
+  if(!container)return;
+  if(rems.length===0){
+    container.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">暂无提醒</div>';
+    return;
+  }
+  container.innerHTML=rems.map(r=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:500">${esc(r.title)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${relTime(r.remind_at)}</div>
+      </div>
+      <button onclick="deleteRem('${r.reminder_id}')" style="background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;padding:4px 6px">×</button>
+    </div>`).join('');
+}
+async function deleteRem(id){
+  await fetch('/api/reminder/reminders/'+id,{method:'DELETE'});
+  populateRemindApp();initRealData();
+}
+
+// ── CALENDAR APP ─────────────────────────────────────────────────────
+async function populateCalendarApp(){
+  const app=document.getElementById('app-calendar');if(!app)return;
+  const[today,upcoming]=await Promise.all([nervusAPI('/calendar/events/today'),nervusAPI('/calendar/events/upcoming')]);
+  const todayEvts=today?.events||[],upEvts=upcoming?.events||[];
+  const container=app.querySelector('[class*="scroll"],[class*="cal-content"],[class*="list"]');
+  if(!container)return;
+  let html='';
+  if(todayEvts.length>0){
+    html+=`<div style="font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:14px 18px 6px">今天</div>`;
+    todayEvts.forEach(e=>{html+=evtItem(e,false);});
+  }
+  if(upEvts.length>0){
+    html+=`<div style="font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:14px 18px 6px">即将到来</div>`;
+    upEvts.forEach(e=>{html+=evtItem(e,true);});
+  }
+  if(!html)html='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">今天没有日程</div>';
+  container.innerHTML=html;
+}
+function evtItem(e,showDate){
+  return`<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border)">
+    <div style="width:36px;height:36px;border-radius:10px;background:var(--accent-s);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📅</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:500">${esc(e.title)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${showDate?fmtRelDate(e.start_time)+' ':''} ${fmtT(e.start_time)}</div>
+    </div></div>`;
+}
+
+// ── CALORIE APP ──────────────────────────────────────────────────────
+async function populateCalorieApp(){
+  const app=document.getElementById('app-calorie');if(!app)return;
+  const data=await nervusAPI('/calorie/today');if(!data)return;
+  const pct=Math.min(100,Math.round(data.total_calories/data.budget*100));
+  // Update number displays
+  app.querySelectorAll('*').forEach(el=>{
+    const t=el.childElementCount===0?el.textContent:'';
+    if(/^1[,，]?4\d\d/.test(t))el.textContent=data.total_calories.toLocaleString();
+    if(/^548$/.test(t.trim()))el.textContent=String(data.remaining);
+    if(/^2[,，]?000$/.test(t.trim()))el.textContent=String(data.budget);
+  });
+  // SVG ring
+  const circles=app.querySelectorAll('circle[stroke-dasharray]');
+  circles.forEach(c=>{
+    const total=2*Math.PI*parseFloat(c.getAttribute('r')||'54');
+    c.setAttribute('stroke-dasharray',`${total*pct/100} ${total}`);
+  });
+  // Meal list
+  const meals=data.meals||[];
+  const mealCont=app.querySelector('[class*="meal-list"],[class*="food-list"],[class*="log"]');
+  if(mealCont&&meals.length>0){
+    mealCont.innerHTML=meals.map(m=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border)">
+        <div style="width:34px;height:34px;border-radius:9px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:15px">🍽</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:500">${esc(m.name||m.food_name||'食物')}</div>
+        <div style="font-size:12px;color:var(--text2)">${m.calories||0} kcal</div></div>
+      </div>`).join('');
+  }
+}
+
+// ── RSS APP ──────────────────────────────────────────────────────────
+async function populateRssApp(){
+  const app=document.getElementById('app-rss');if(!app)return;
+  const data=await nervusAPI('/rss/articles?limit=20');
+  const articles=data?.articles||[];
+  const container=app.querySelector('[class*="scroll"],[class*="list"],[class*="feed"]');
+  if(!container)return;
+  if(articles.length===0){
+    container.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">暂无文章<br>先添加 RSS 订阅源</div>';
+    return;
+  }
+  container.innerHTML=articles.map(a=>`
+    <div style="padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer" onclick="window.open('${esc(a.url||'')}','_blank')">
+      <div style="font-size:14px;font-weight:500;margin-bottom:4px;line-height:1.4">${esc(a.title||'')}</div>
+      <div style="font-size:12px;color:var(--text2);display:flex;gap:8px">
+        <span>${esc(a.source||a.feed_title||'')}</span>
+        <span style="color:var(--text3)">${fmtRelDate(a.published_at||a.created_at)}</span>
+      </div></div>`).join('');
+}
+
+// ── KNOWLEDGE / PDF APP ───────────────────────────────────────────────
+async function populateKnowledgeApp(){
+  const app=document.getElementById('app-knowledge');if(!app)return;
+  const docs=await nervusAPI('/pdf/documents');
+  const list=docs?.documents||[];
+  const container=app.querySelector('[class*="scroll"],[class*="doc"],[class*="list"]');
+  if(!container)return;
+  if(list.length===0){
+    container.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">暂无文档<br>上传 PDF 开始解析</div>';
+    return;
+  }
+  container.innerHTML=list.map(d=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,110,122,.13);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📄</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.filename||d.name||'文档')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${d.page_count||d.pages||'?'} 页 · ${fmtRelDate(d.created_at)}</div>
+      </div></div>`).join('');
+}
+
+// ── MEETING APP ───────────────────────────────────────────────────────
+async function populateMeetingApp(){
+  const app=document.getElementById('app-meeting');if(!app)return;
+  const data=await nervusAPI('/meeting/meetings');
+  const meetings=data?.meetings||[];
+  const histEl=app.querySelector('[class*="history"],[class*="meet-list"],[class*="scroll"]');
+  if(!histEl)return;
+  if(meetings.length===0){
+    histEl.innerHTML='<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">暂无会议记录</div>';
+    return;
+  }
+  histEl.innerHTML=meetings.map(m=>`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">${esc(m.title||'会议')}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${fmtRelDate(m.created_at)} · ${m.duration_minutes||'?'} 分钟</div>
+      ${m.summary?`<div style="font-size:12px;color:var(--text2);line-height:1.6">${esc(m.summary).slice(0,150)}…</div>`:''}
+    </div>`).join('');
+}
+
+// ── NOTES: wire save button ───────────────────────────────────────────
+(function(){
+  const detailHdr=document.querySelector('#app-notes [class*="notes-hdr"],.notes-hdr');
+  if(detailHdr){
+    const btns=detailHdr.querySelectorAll('button,[onclick]');
+    btns.forEach(btn=>{
+      const oc=btn.getAttribute('onclick')||'';
+      if(oc.includes('closeNote')||btn.textContent.trim()==='完成'){
+        btn.setAttribute('onclick','saveCurrentNote()');
+      }
+    });
+  }
+})();
+
+// Demo notification — disabled (was distracting)
+// setTimeout(()=>{if(current==='home')showNotif();},4000);
+
+// ── KICK OFF ────────────────────────────────────────────────────────
+initRealData();
 
 // Spec scroll — pointer events routed through unified gesture system
 // handleSwipeEnd above handles page navigation; touch scroll-snap handles mobile

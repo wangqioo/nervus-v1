@@ -51,6 +51,7 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": False,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
         if json_mode:
             body["response_format"] = {"type": "json_object"}
@@ -134,6 +135,7 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": False,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
 
         response = await self._client.post(

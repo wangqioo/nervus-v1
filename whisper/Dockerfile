@@ -1,18 +1,10 @@
-FROM python:3.11-slim
+FROM nervus-python-base:latest
 
 WORKDIR /app
 
-# 系统依赖（ffmpeg 用于音频处理）
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Python 依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 应用代码
 COPY main.py .
 
 EXPOSE 8081
