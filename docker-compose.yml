@@ -637,6 +637,38 @@ services:
     volumes:
     - redis-data:/data
     - ./redis/redis.conf:/etc/redis/redis.conf:ro
+  app-file-manager:
+    build:
+      context: .
+      dockerfile: apps/file-manager/Dockerfile
+    container_name: nervus-app-files
+    entrypoint: []
+    environment:
+      GLM_API_KEY: ${GLM_API_KEY:-}
+      GLM_MODEL: ${GLM_MODEL:-glm-4-flash}
+      GLM_VISION_MODEL: ${GLM_VISION_MODEL:-glm-4v-flash}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50}
+      CORS_ORIGINS: http://localhost:5173,http://nervus.local,http://localhost:8900
+      LINKBOX_API_URL: ${LINKBOX_API_URL:-}
+      LINKBOX_API_KEY: ${LINKBOX_API_KEY:-}
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8015/health
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8015:8015
+    restart: unless-stopped
+    volumes:
+    - files-data:/app/data/files
+    image: nervus-app-files:latest
   whisper:
     build:
       context: ./whisper
@@ -680,3 +712,4 @@ volumes:
   status-sense-data: null
   video-data: null
   whisper-models: null
+  files-data: null
