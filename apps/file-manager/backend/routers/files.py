@@ -176,4 +176,9 @@ async def download_file(file_id: str):
     file_path = storage.get_file_absolute_path(meta)
     if not file_path or not file_path.exists():
         raise HTTPException(404, "文件已被删除")
-    return FileResponse(str(file_path), filename=meta.original_filename, media_type=meta.mime_type or "application/octet-stream")
+    return FileResponse(
+        str(file_path),
+        filename=meta.original_filename,
+        media_type=meta.mime_type or "application/octet-stream",
+        headers={"Cache-Control": "private, max-age=604800, immutable"},
+    )

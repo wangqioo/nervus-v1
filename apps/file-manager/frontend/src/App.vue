@@ -1,40 +1,53 @@
 <template>
-  <!-- Desktop: phone frame wrapper -->
-  <div class="stage">
-    <div class="phone" id="phone">
-      <!-- Dynamic Island -->
-      <div class="di"></div>
-
-      <!-- Status bar -->
-      <div class="sb">
-        <span class="sb-time">{{ timeStr }}</span>
-        <div class="sb-icons">
-          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="0" width="3" height="12" rx="1" fill="currentColor"/><rect x="14" y="4" width="2.5" height="7" rx=".8" fill="currentColor" opacity=".3"/></svg>
-          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.5C10.5 2.5 12.7 3.5 14.2 5.2L15.5 3.8C13.6 1.7 11 .5 8 .5S2.4 1.7.5 3.8L1.8 5.2C3.3 3.5 5.5 2.5 8 2.5Z" fill="currentColor" opacity=".4"/><path d="M8 5.5C9.7 5.5 11.2 6.2 12.3 7.3L13.6 5.9C12.1 4.4 10.2 3.5 8 3.5S3.9 4.4 2.4 5.9L3.7 7.3C4.8 6.2 6.3 5.5 8 5.5Z" fill="currentColor" opacity=".7"/><circle cx="8" cy="10" r="1.8" fill="currentColor"/></svg>
-          <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22.5" y="4" width="2" height="4" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
-        </div>
-      </div>
-
-      <!-- App content -->
-      <div class="viewport"
-        @touchstart.passive="onTouchStart"
-        @touchend.passive="onTouchEnd"
-        @mousedown="onMouseDown"
-        @mousemove="onMouseMove"
-        @mouseup="onMouseUp"
-        @mouseleave="onMouseUp"
-      >
-        <router-view v-slot="{ Component }">
-          <transition :name="transitionName" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </div>
-
-      <!-- Home indicator -->
-      <div class="home-indicator"></div>
+  <!-- Embedded (iframe) mode: no phone shell, fill the iframe directly -->
+  <template v-if="isIframe">
+    <div class="embed-root"
+      @touchstart.passive="onTouchStart"
+      @touchend.passive="onTouchEnd"
+      @mousedown="onMouseDown"
+      @mousemove="onMouseMove"
+      @mouseup="onMouseUp"
+      @mouseleave="onMouseUp"
+    >
+      <router-view v-slot="{ Component }">
+        <transition :name="transitionName" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </div>
-  </div>
+  </template>
+
+  <!-- Standalone mode: full phone frame -->
+  <template v-else>
+    <div class="stage">
+      <div class="phone" id="phone">
+        <div class="di"></div>
+        <div class="sb">
+          <span class="sb-time">{{ timeStr }}</span>
+          <div class="sb-icons">
+            <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="0" width="3" height="12" rx="1" fill="currentColor"/><rect x="14" y="4" width="2.5" height="7" rx=".8" fill="currentColor" opacity=".3"/></svg>
+            <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.5C10.5 2.5 12.7 3.5 14.2 5.2L15.5 3.8C13.6 1.7 11 .5 8 .5S2.4 1.7.5 3.8L1.8 5.2C3.3 3.5 5.5 2.5 8 2.5Z" fill="currentColor" opacity=".4"/><path d="M8 5.5C9.7 5.5 11.2 6.2 12.3 7.3L13.6 5.9C12.1 4.4 10.2 3.5 8 3.5S3.9 4.4 2.4 5.9L3.7 7.3C4.8 6.2 6.3 5.5 8 5.5Z" fill="currentColor" opacity=".7"/><circle cx="8" cy="10" r="1.8" fill="currentColor"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity=".35" fill="none"/><rect x="22.5" y="4" width="2" height="4" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+          </div>
+        </div>
+        <div class="viewport"
+          @touchstart.passive="onTouchStart"
+          @touchend.passive="onTouchEnd"
+          @mousedown="onMouseDown"
+          @mousemove="onMouseMove"
+          @mouseup="onMouseUp"
+          @mouseleave="onMouseUp"
+        >
+          <router-view v-slot="{ Component }">
+            <transition :name="transitionName" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </template>
 </template>
 
 <script setup>
@@ -45,6 +58,8 @@ import { useTheme } from './composables/useTheme'
 useTheme()
 const router = useRouter()
 const route  = useRoute()
+
+const isIframe = window.self !== window.top
 
 const timeStr = ref('')
 function updateTime() {
@@ -83,7 +98,10 @@ function onTouchEnd(e) {
   const dx = e.changedTouches[0].clientX - txStart
   const dy = e.changedTouches[0].clientY - tyStart
   if (Math.abs(dx) <= Math.abs(dy) + 10) return
-  if (dx > 60 && route.path !== '/') router.back()
+  if (dx > 60) {
+    if (route.path !== '/') router.back()
+    else if (isIframe) window.parent.postMessage({ type: 'nervus-nav', action: 'back' }, '*')
+  }
 }
 
 let mouseDown = false, mxStart = 0, myStart = 0, mouseMoved = false
@@ -104,7 +122,10 @@ function onMouseUp(e) {
   const dx = e.clientX - mxStart
   const dy = e.clientY - myStart
   if (Math.abs(dx) <= Math.abs(dy) + 10) return
-  if (dx > 60 && route.path !== '/') router.back()
+  if (dx > 60) {
+    if (route.path !== '/') router.back()
+    else if (isIframe) window.parent.postMessage({ type: 'nervus-nav', action: 'back' }, '*')
+  }
 }
 
 let timer
@@ -169,6 +190,14 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('resize', u
   --orange: #E0820A;
   --red: #E8344A;
   --card: #FFFFFF;
+}
+
+/* ── Iframe embed mode ── */
+.embed-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
 }
 
 /* ── Page body / stage ── */

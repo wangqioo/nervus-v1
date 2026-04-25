@@ -2300,6 +2300,7 @@ phone.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].
 phone.addEventListener('touchend',e=>{if(Date.now()-st>600)return;handleSwipeEnd(e.changedTouches[0].clientX-sx,e.changedTouches[0].clientY-sy);},{passive:true});
 phone.addEventListener('mousedown',e=>{sx=e.clientX;sy=e.clientY;dragging=true});
 document.addEventListener('mouseup',e=>{if(!dragging)return;dragging=false;handleSwipeEnd(e.clientX-sx,e.clientY-sy);});
+window.addEventListener('message',e=>{if(e.data?.type==='nervus-nav'&&e.data?.action==='back')nav('home');});
 
 // App screens
 function openApp(id) {

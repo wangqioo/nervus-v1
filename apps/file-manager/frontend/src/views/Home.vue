@@ -72,10 +72,11 @@
                 <div
                   class="fm-img-card"
                   :style="{ transform: `translateX(${swipe[f.id] || 0}px)` }"
-                  @click="handleCardClick(f)"
+                  @click="!f._uploading && handleCardClick(f)"
                 >
                   <div class="fm-img-inner" :class="imgBgClass(f)">
-                    <img :src="`/api/files/${f.id}/download`" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
+                    <img :src="localPreviews[f.id] || `/api/files/${f.id}/download`" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
+                    <div v-if="f._uploading" class="uploading-overlay">上传中</div>
                   </div>
                   <div class="fm-img-lbl">
                     <span class="img-lbl-name">{{ f.original_filename }}</span>
@@ -267,6 +268,7 @@ const router = useRouter()
 const files = ref([])
 const loading = ref(false)
 const uploading = ref(false)
+const localPreviews = reactive({})  // tempId -> blob URL
 const textInput = ref('')
 const fileInputRef = ref(null)
 const analyzeNow = ref(false)
@@ -477,35 +479,59 @@ async function submitText() {
     await doUpload(null, val)
   } else {
     uploading.value = true
-    uploadToast.value = '发送中…'
     try {
       await uploadText(val)
       await loadFiles()
-      uploadToast.value = '✓ 发送成功'
       setTimeout(() => { feedEl.value?.scrollTo({ top: feedEl.value.scrollHeight, behavior: 'smooth' }) }, 100)
     } catch (e) {
       uploadToast.value = `✗ ${e.response?.data?.detail || e.message}`
+      setTimeout(() => { uploadToast.value = '' }, 2200)
     }
     uploading.value = false
-    setTimeout(() => { uploadToast.value = '' }, 2200)
   }
 }
 
 async function doUpload(file, url) {
   uploading.value = true
-  uploadToast.value = `上传中 ${file?.name || url || ''}…`
+
+  // For images: show a local preview immediately, don't wait for server
+  let tempId = null
+  if (file && file.type.startsWith('image/')) {
+    tempId = 'temp-' + Date.now()
+    const blobUrl = URL.createObjectURL(file)
+    localPreviews[tempId] = blobUrl
+    files.value.push({
+      id: tempId,
+      filename: file.name,
+      original_filename: file.name,
+      type: 'image',
+      created_at: new Date().toISOString(),
+      status: 'pending',
+      _uploading: true,
+    })
+    await nextTick()
+    feedEl.value?.scrollTo({ top: feedEl.value.scrollHeight, behavior: 'smooth' })
+  }
+
   try {
     if (file) await uploadFile(file, analyzeNow.value)
     else await uploadLink(url, analyzeNow.value)
+    if (tempId) {
+      URL.revokeObjectURL(localPreviews[tempId])
+      delete localPreviews[tempId]
+    }
     await loadFiles()
-    uploadToast.value = '✓ 发送成功'
-    // Scroll to bottom after upload
     setTimeout(() => { feedEl.value?.scrollTo({ top: feedEl.value.scrollHeight, behavior: 'smooth' }) }, 100)
   } catch (e) {
+    if (tempId) {
+      files.value = files.value.filter(f => f.id !== tempId)
+      URL.revokeObjectURL(localPreviews[tempId])
+      delete localPreviews[tempId]
+    }
     uploadToast.value = `✗ ${e.response?.data?.detail || e.message}`
+    setTimeout(() => { uploadToast.value = '' }, 2200)
   }
   uploading.value = false
-  setTimeout(() => { uploadToast.value = '' }, 2200)
 }
 
 function confirmDelete(f) { deleteTarget.value = f }
@@ -655,6 +681,12 @@ async function doDelete() {
 }
 .img-thumb {
   width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.uploading-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .5px;
 }
 .img-bg-a { background: linear-gradient(135deg, rgba(139,114,255,.25), rgba(94,234,181,.15)); }
 .img-bg-b { background: linear-gradient(135deg, rgba(255,170,92,.2), rgba(255,110,122,.15)); }
