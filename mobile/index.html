@@ -618,6 +618,147 @@ body{min-height:100vh;background:#020208;display:flex;align-items:center;justify
 .stat-val{font-size:20px;font-weight:800;color:var(--accent);line-height:1}
 .stat-lbl{font-size:9px;color:var(--text3);margin-top:3px}
 
+/* ── FILE MANAGER EXTRAS ── */
+/* Swipe-to-delete card wrapper */
+.fm-swipe-wrap{position:relative;overflow:hidden;border-radius:16px;margin-bottom:0}
+.fm-swipe-del{position:absolute;right:0;top:0;bottom:0;width:64px;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;border-radius:0 16px 16px 0;opacity:0;transition:opacity .15s}
+.fm-swipe-inner{transition:transform .25s cubic-bezier(.32,.72,0,1);will-change:transform;position:relative;z-index:1}
+
+/* Detail panel full */
+#fm-detail{display:none;position:absolute;inset:0;background:var(--bg);z-index:100;overflow-y:auto}
+.fd-hdr{position:sticky;top:0;left:0;right:0;height:58px;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:5}
+.fd-back{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;display:flex;align-items:center;line-height:1}
+.fd-hdr-ttl{flex:1;font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fd-body{padding:16px 20px 100px}
+.fd-hero{width:100%;border-radius:14px;overflow:hidden;margin-bottom:16px;background:var(--s1)}
+.fd-hero img{width:100%;max-height:240px;object-fit:cover;display:block}
+.fd-hero-placeholder{height:120px;display:flex;align-items:center;justify-content:center;font-size:48px}
+.fd-name{font-size:17px;font-weight:700;color:var(--text);word-break:break-all;margin-bottom:6px}
+.fd-meta-row{font-size:12px;color:var(--text3);margin-bottom:18px}
+.fd-section{margin-bottom:16px}
+.fd-sec-lbl{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.fd-ai-pending{display:flex;align-items:center;gap:10px;padding:12px;background:var(--s1);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--text2)}
+.fd-ai-spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--border2);border-top-color:var(--accent);animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fd-ai-failed{padding:12px;background:rgba(255,110,122,.08);border:1px solid rgba(255,110,122,.2);border-radius:12px;font-size:12px;color:var(--red);line-height:1.6}
+.fd-summary-box{font-size:15px;font-weight:600;color:var(--text);line-height:1.65;margin-bottom:8px}
+.fd-desc-box{font-size:13px;color:var(--text2);line-height:1.7}
+.fd-highlights{list-style:none;display:flex;flex-direction:column;gap:7px}
+.fd-highlights li{font-size:13px;color:var(--text2);line-height:1.55;display:flex;gap:8px}
+.fd-highlights li::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0}
+.fd-kw-row{display:flex;flex-wrap:wrap;gap:6px}
+.fd-kw{padding:4px 10px;border-radius:20px;background:var(--accent-s);border:1px solid var(--accent-g);color:var(--accent);font-size:12px;font-weight:500}
+.fd-actions{position:fixed;bottom:0;left:0;right:0;padding:12px 16px 28px;background:var(--bg-blur);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;gap:8px;z-index:6}
+#fm-detail .fd-actions{position:sticky;bottom:0;margin:-100px -20px -100px;padding:12px 20px 28px}
+.fd-btn{flex:1;height:44px;border-radius:14px;border:none;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s}
+.fd-btn:active{transform:scale(.96)}
+.fd-btn-ghost{background:var(--s2);border:1px solid var(--border2);color:var(--text)}
+.fd-btn-accent{background:var(--accent);color:#fff;box-shadow:0 0 16px var(--accent-g)}
+.fd-btn-teal{background:var(--teal-s);border:1px solid rgba(94,234,181,.25);color:var(--teal)}
+.fd-btn-red{background:rgba(255,110,122,.1);border:1px solid rgba(255,110,122,.25);color:var(--red);flex:none;width:44px}
+.fd-btn-wx{background:linear-gradient(135deg,rgba(7,193,96,.2),rgba(7,193,96,.08));border:1px solid rgba(7,193,96,.3);color:#07C160;font-size:12px}
+
+/* WeChat article overlay */
+#fm-wx-overlay{display:none;position:absolute;inset:0;background:var(--bg);z-index:200;overflow-y:auto}
+.wx-hdr{position:sticky;top:0;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.wx-back{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0}
+.wx-ttl{flex:1;font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wx-body{padding:20px 22px 60px;font-size:15px;color:var(--text);line-height:1.8}
+.wx-meta{font-size:12px;color:var(--text3);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.wx-body h2{font-size:18px;font-weight:700;margin:20px 0 10px;color:var(--text)}
+.wx-body h3{font-size:16px;font-weight:600;margin:16px 0 8px;color:var(--text)}
+.wx-body p{margin:0 0 14px}
+.wx-body blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--accent);background:var(--s1);border-radius:0 8px 8px 0;color:var(--text2);font-size:14px}
+.wx-body code{background:var(--s3);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:13px}
+.wx-body img{max-width:100%;border-radius:10px;margin:8px 0}
+.wx-body strong{font-weight:700;color:var(--text)}
+.wx-body em{font-style:italic;color:var(--text2)}
+#wx-loading{text-align:center;padding:60px 20px;color:var(--text3);font-size:14px}
+
+/* Chat search panel */
+#fm-chat-panel{display:none;position:absolute;inset:0;background:var(--bg);z-index:110;flex-direction:column}
+#fm-chat-panel.open{display:flex}
+.fmc-hdr{height:58px;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);flex-shrink:0}
+.fmc-back{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0}
+.fmc-ttl{flex:1;font-size:15px;font-weight:600;color:var(--text)}
+.fmc-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.fmc-msg-ai{display:flex;gap:10px;align-items:flex-start}
+.fmc-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 0 10px var(--accent-g)}
+.fmc-bubble-ai{background:var(--s2);border:1px solid var(--border);border-radius:18px;border-top-left-radius:5px;padding:10px 14px;font-size:14px;color:var(--text);line-height:1.6;max-width:calc(100% - 50px)}
+.fmc-bubble-u{background:linear-gradient(135deg,var(--accent),#6B52F0);color:#fff;border-radius:18px;border-bottom-right-radius:5px;padding:10px 14px;font-size:14px;line-height:1.55;align-self:flex-end;max-width:80%}
+.fmc-dots{display:flex;gap:5px;padding:4px 2px}
+.fmc-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);animation:fmc-bounce .9s ease-in-out infinite}
+.fmc-dot:nth-child(2){animation-delay:.18s}
+.fmc-dot:nth-child(3){animation-delay:.36s}
+@keyframes fmc-bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+.fmc-result-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);border-radius:12px;margin-top:6px;cursor:pointer;transition:background .15s}
+.fmc-result-card:active{background:var(--s3)}
+.fmc-result-ico{font-size:22px;flex-shrink:0}
+.fmc-result-body{flex:1;min-width:0}
+.fmc-result-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmc-result-reason{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fmc-result-stars{color:var(--orange);font-size:10px;flex-shrink:0}
+.fmc-inp-row{display:flex;align-items:center;gap:8px;padding:10px 14px 28px;background:var(--bg-blur);backdrop-filter:blur(20px);border-top:1px solid var(--border);flex-shrink:0}
+.fmc-inp{flex:1;height:40px;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:0 16px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.fmc-inp::placeholder{color:var(--text3)}
+.fmc-send{width:40px;height:40px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px var(--accent-g)}
+
+/* Category view */
+#fm-cat-panel{display:none;position:absolute;inset:0;background:var(--bg);z-index:105;flex-direction:column}
+#fm-cat-panel.open{display:flex}
+.fmcat-hdr{height:58px;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);flex-shrink:0}
+.fmcat-back{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0}
+.fmcat-ttl{flex:1;font-size:15px;font-weight:600;color:var(--text)}
+.fmcat-body{flex:1;overflow-y:auto;padding:16px}
+.fmcat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.fmcat-tile{border-radius:16px;padding:14px 10px;text-align:center;cursor:pointer;border:1px solid var(--border);transition:all .18s;position:relative;overflow:hidden}
+.fmcat-tile:active{transform:scale(.94)}
+.fmcat-tile-ico{font-size:28px;display:block;margin-bottom:6px}
+.fmcat-tile-lbl{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.fmcat-tile-cnt{font-size:11px;color:var(--text3)}
+.fmcat-tl-hdr{font-size:12px;font-weight:700;color:var(--text2);margin:16px 0 8px;letter-spacing:.5px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.fmcat-tl-hdr::after{content:'›';color:var(--text3);margin-left:auto;transition:transform .2s}
+.fmcat-tl-hdr.open::after{transform:rotate(90deg)}
+.fmcat-month{padding-left:12px}
+.fmcat-month-lbl{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.3px;margin:10px 0 6px}
+.fmcat-day-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.fmcat-day-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.fmcat-day-lbl{font-size:13px;color:var(--text);font-weight:500;flex:1}
+.fmcat-day-cnt{font-size:12px;color:var(--text3)}
+.fmcat-day-arr{font-size:16px;color:var(--text3)}
+
+/* Day files panel */
+#fm-day-panel{display:none;position:absolute;inset:0;background:var(--bg);z-index:120;flex-direction:column}
+#fm-day-panel.open{display:flex}
+.fmday-hdr{height:58px;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg-blur);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);flex-shrink:0}
+.fmday-back{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0}
+.fmday-ttl{flex:1;font-size:15px;font-weight:600;color:var(--text)}
+.fmday-badge{padding:3px 10px;border-radius:10px;background:var(--accent-s);border:1px solid var(--accent-g);color:var(--accent);font-size:12px;font-weight:600}
+.fmday-list{flex:1;overflow-y:auto;padding:10px 16px 80px}
+.fmday-card{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.fmday-card:active{opacity:.7}
+.fmday-thumb{width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden}
+.fmday-thumb img{width:100%;height:100%;object-fit:cover}
+.fmday-info{flex:1;min-width:0}
+.fmday-name{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.fmday-meta{font-size:11px;color:var(--text3);display:flex;gap:6px;align-items:center;margin-bottom:3px}
+.fmday-sum{font-size:12px;color:var(--text2);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fmday-status{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.fmday-status.ready{background:var(--teal)}
+.fmday-status.pending{background:var(--orange)}
+.fmday-status.failed{background:var(--red)}
+
+/* Upload progress bar in input area */
+.fm-upload-prog{position:absolute;left:0;right:0;bottom:80px;background:var(--bg-blur);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:8px 16px;display:none}
+.fm-upload-prog.show{display:block}
+.fm-upload-prog-name{font-size:12px;color:var(--text2);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fm-upload-prog-bar{height:3px;border-radius:2px;background:var(--s3);overflow:hidden}
+.fm-upload-prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--teal));transition:width .2s}
+
+/* Toast */
+.fm-toast{position:absolute;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--s3);border:1px solid var(--border2);border-radius:20px;padding:8px 18px;font-size:13px;color:var(--text);white-space:nowrap;opacity:0;transition:all .3s;pointer-events:none;z-index:999}
+.fm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
 /* ── Notes App ── */
 .notes-wrap{position:absolute;top:100px;bottom:0;left:0;right:0;overflow:hidden}
 .notes-list-view,.notes-detail-view{position:absolute;inset:0;transition:transform .38s cubic-bezier(.32,.72,0,1)}
@@ -2159,20 +2300,28 @@ border-radius: <span class="cs">16px</span>;</div>
       </div>
       <div class="fm-hdr">
         <div class="fm-av">🗂</div>
-        <div>
+        <div style="flex:1">
           <div class="fm-ttl">文件管理</div>
           <div style="font-size:12px;color:var(--text3);margin-top:1px" id="fm-stat">发送给自己的文件 · 链接 · 文字</div>
         </div>
+        <button class="icon-btn" onclick="fmOpenCat()" title="分类">⊞</button>
       </div>
       <div class="fm-search-bar">
-        <div class="fm-search-inner">
+        <div class="fm-search-inner" onclick="fmOpenChat()" style="cursor:pointer">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="var(--text3)" stroke-width="1.5"/><path d="M11 11L14 14" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <input id="fm-search-inp" placeholder="AI 语义搜索…"/>
+          <input id="fm-search-inp" placeholder="AI 语义搜索…" readonly style="cursor:pointer"/>
         </div>
       </div>
       <div class="fm-feed" id="fm-feed">
         <div style="text-align:center;padding:64px 20px;color:var(--text3);font-size:13px">向右滑进入后加载</div>
       </div>
+      <!-- Upload progress indicator -->
+      <div class="fm-upload-prog" id="fm-upload-prog">
+        <div class="fm-upload-prog-name" id="fm-upload-name">上传中…</div>
+        <div class="fm-upload-prog-bar"><div class="fm-upload-prog-fill" id="fm-upload-fill" style="width:0%"></div></div>
+      </div>
+      <!-- Toast -->
+      <div class="fm-toast" id="fm-toast"></div>
       <input type="file" id="fmFileInput" style="display:none" multiple>
       <div class="fm-inp">
         <button class="mic-btn" style="width:34px;height:34px;font-size:15px;flex-shrink:0" onclick="fmPickFile()">📎</button>
@@ -2180,19 +2329,60 @@ border-radius: <span class="cs">16px</span>;</div>
         <input class="fm-inp-field" id="fm-text-inp" placeholder="发送文字给自己…" onkeydown="if(event.key==='Enter')fmSendText()"/>
         <button class="send-btn" style="width:34px;height:34px;flex-shrink:0" onclick="fmSendText()">↑</button>
       </div>
-      <!-- 文件详情浮层 -->
-      <div id="fm-detail" style="display:none;position:absolute;inset:0;background:var(--bg-blur);backdrop-filter:blur(24px);z-index:100;padding:70px 20px 20px;overflow-y:auto">
-        <button onclick="fmCloseDetail()" style="position:absolute;top:20px;right:20px;background:var(--s2);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--text2);font-size:16px;cursor:pointer">×</button>
-        <div id="fd-ico" style="font-size:42px;text-align:center;margin-bottom:14px"></div>
-        <div id="fd-name" style="font-size:16px;font-weight:700;color:var(--text);text-align:center;word-break:break-all;margin-bottom:6px"></div>
-        <div id="fd-meta" style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:20px"></div>
-        <div id="fd-summary" style="font-size:14px;color:var(--text);line-height:1.7;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px"></div>
-        <div id="fd-keywords" style="font-size:12px;color:var(--accent);margin-bottom:20px;line-height:1.8"></div>
-        <div style="display:flex;gap:10px">
-          <button id="fd-dl" onclick="fmDownload()" style="flex:1;height:42px;background:var(--s2);border:1px solid var(--border2);border-radius:14px;color:var(--text);font-size:14px;cursor:pointer">↓ 下载</button>
-          <button id="fd-open" onclick="fmOpenUrl()" style="flex:1;height:42px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:14px;cursor:pointer">打开链接</button>
-          <button onclick="fmDeleteCurrent()" style="width:42px;height:42px;background:rgba(255,110,122,.12);border:1px solid rgba(255,110,122,.3);border-radius:14px;color:var(--red);font-size:16px;cursor:pointer">🗑</button>
+
+      <!-- 文件详情面板 (full-screen) -->
+      <div id="fm-detail">
+        <div class="fd-hdr">
+          <button class="fd-back" onclick="fmCloseDetail()">‹</button>
+          <span class="fd-hdr-ttl" id="fd-hdr-name"></span>
         </div>
+        <div class="fd-body" id="fd-body">
+          <!-- Filled by fmShowDetail -->
+        </div>
+      </div>
+
+      <!-- WeChat article overlay -->
+      <div id="fm-wx-overlay">
+        <div class="wx-hdr">
+          <button class="wx-back" onclick="fmCloseWx()">‹</button>
+          <span class="wx-ttl" id="wx-ttl-text">查看原文</span>
+        </div>
+        <div id="wx-loading">加载中…</div>
+        <div class="wx-body" id="wx-body" style="display:none"></div>
+      </div>
+
+      <!-- Chat AI search panel -->
+      <div id="fm-chat-panel">
+        <div class="fmc-hdr">
+          <button class="fmc-back" onclick="fmCloseChat()">‹</button>
+          <span class="fmc-ttl">AI 文件搜索</span>
+        </div>
+        <div class="fmc-msgs" id="fmc-msgs"></div>
+        <div class="fmc-inp-row">
+          <input class="fmc-inp" id="fmc-inp" placeholder="搜索文件…" onkeydown="if(event.key==='Enter')fmChatSend()"/>
+          <button class="fmc-send" onclick="fmChatSend()">↑</button>
+        </div>
+      </div>
+
+      <!-- Category panel -->
+      <div id="fm-cat-panel">
+        <div class="fmcat-hdr">
+          <button class="fmcat-back" onclick="fmCloseCat()">‹</button>
+          <span class="fmcat-ttl">分类浏览</span>
+        </div>
+        <div class="fmcat-body" id="fmcat-body">
+          <!-- Filled by fmRenderCat -->
+        </div>
+      </div>
+
+      <!-- Day files panel -->
+      <div id="fm-day-panel">
+        <div class="fmday-hdr">
+          <button class="fmday-back" onclick="fmCloseDay()">‹</button>
+          <span class="fmday-ttl" id="fmday-ttl">文件列表</span>
+          <span class="fmday-badge" id="fmday-badge" style="display:none"></span>
+        </div>
+        <div class="fmday-list" id="fmday-list"></div>
       </div>
     </div>
 
@@ -2858,6 +3048,7 @@ const FM = '/api/files';
 const FM_ICO = {image:'🖼',video:'🎬',document:'📄',audio:'🎵',link:'🔗',text:'💬',other:'📦'};
 const FM_CLR = {image:'rgba(139,114,255,.15)',video:'rgba(255,110,122,.15)',document:'rgba(255,110,122,.15)',audio:'rgba(94,234,181,.15)',link:'rgba(255,170,92,.15)',text:'rgba(139,114,255,.15)',other:'rgba(255,255,255,.08)'};
 const FM_LBL = {image:'图片',video:'视频',document:'文档',audio:'音频',link:'链接',text:'文字',other:'文件'};
+const FM_TYPE_COLOR = {image:'rgba(139,114,255,.15)',video:'rgba(255,110,122,.15)',document:'rgba(255,170,92,.15)',audio:'rgba(94,234,181,.15)',link:'rgba(100,170,255,.15)',text:'rgba(255,255,255,.08)',other:'rgba(255,255,255,.06)'};
 let _fmFiles=[], _fmSse=null, _fmReady=false, _fmDetailId=null;
 
 function fmSize(b){if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB';}
@@ -2868,38 +3059,57 @@ function fmDateLbl(iso){
   if(d>=t0)return'今天';if(d>=t1)return'昨天';
   return`${d.getMonth()+1}月${d.getDate()}日`;
 }
+function fmShowToast(msg){
+  const t=document.getElementById('fm-toast');if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
 
 async function initFilesPanel(){
   if(_fmReady)return;
   _fmReady=true;
-  // Wire search
+  // Search bar click → open chat
   const si=document.getElementById('fm-search-inp');
   if(si){
-    let _t=null;
-    si.addEventListener('input',()=>{clearTimeout(_t);_t=setTimeout(()=>fmLoad(si.value.trim()),400);});
+    si.addEventListener('click',fmOpenChat);
   }
   // Wire file input
   const fi=document.getElementById('fmFileInput');
   if(fi)fi.addEventListener('change',fmUploadFiles);
+  // Paste handling
+  document.addEventListener('paste',fmHandlePaste);
   await fmLoad();
   fmConnectSse();
+}
+
+function fmHandlePaste(e){
+  if(current!=='files')return;
+  const text=(e.clipboardData||window.clipboardData).getData('text');
+  if(!text)return;
+  if(text.startsWith('http://') || text.startsWith('https://')){
+    const fd=new FormData();fd.append('url',text);
+    fetch(`${FM}/upload`,{method:'POST',body:fd}).then(()=>{fmLoad();fmShowToast('链接已保存');});
+  }else{
+    const fd=new FormData();fd.append('text',text);
+    fetch(`${FM}/upload`,{method:'POST',body:fd}).then(()=>{fmLoad();fmShowToast('文字已保存');});
+  }
 }
 
 async function fmLoad(q=''){
   const feed=document.getElementById('fm-feed');
   if(!feed)return;
-  if(q){
-    feed.innerHTML='<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">搜索中…</div>';
-    const data=await fetch(`${FM}/search?q=${encodeURIComponent(q)}`).then(r=>r.json()).catch(()=>null);
-    fmRenderSearch(data?.results||[]);
-    return;
-  }
   feed.innerHTML='<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">加载中…</div>';
-  const data=await fetch(`${FM}?limit=100`).then(r=>r.json()).catch(()=>[]);
-  _fmFiles=Array.isArray(data)?data:[];
-  fmRenderFeed(_fmFiles);
+  let url=`${FM}?limit=200`;
+  if(q)url=`${FM}/search?q=${encodeURIComponent(q)}`;
+  const data=await fetch(url).then(r=>r.json()).catch(()=>[]);
+  const files=q?(data.results||[]):(Array.isArray(data)?data:[]);
+  if(!q)_fmFiles=files;
+  fmRenderFeed(files);
   const stat=document.getElementById('fm-stat');
-  if(stat&&_fmFiles.length)stat.textContent=`共 ${_fmFiles.length} 项 · AI 自动分析`;
+  if(stat){
+    if(q)stat.textContent=`搜索"${q}"· ${files.length} 个结果`;
+    else if(_fmFiles.length)stat.textContent=`共 ${_fmFiles.length} 项 · AI 自动分析`;
+  }
 }
 
 function fmRenderFeed(files){
@@ -2914,63 +3124,108 @@ function fmRenderFeed(files){
     items.forEach(f=>{html+=fmItemHtml(f);});
   }
   feed.innerHTML=html;
+  // Attach swipe-to-delete handlers after render
+  feed.querySelectorAll('.fm-swipe-wrap').forEach(fmAttachSwipe);
+}
+
+function fmAttachSwipe(wrap){
+  const inner=wrap.querySelector('.fm-swipe-inner');
+  const del=wrap.querySelector('.fm-swipe-del');
+  const fid=wrap.dataset.fid;
+  if(!inner||!del)return;
+  let sx=0,sy=0,swipeX=0,swiping=false,locked=false;
+  inner.addEventListener('touchstart',e=>{
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;swipeX=0;swiping=true;locked=false;
+  },{passive:true});
+  inner.addEventListener('touchmove',e=>{
+    if(!swiping)return;
+    const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;
+    if(!locked){if(Math.abs(dy)>Math.abs(dx)){swiping=false;return;}locked=true;}
+    swipeX=Math.min(0,dx);
+    inner.style.transition='none';
+    inner.style.transform=`translateX(${Math.max(-80,swipeX)}px)`;
+    del.style.opacity=swipeX<-10?Math.min(1,(-swipeX-10)/54)+'':'0';
+  },{passive:true});
+  inner.addEventListener('touchend',()=>{
+    swiping=false;locked=false;
+    if(swipeX<-36){
+      inner.style.transition='transform .25s cubic-bezier(.32,.72,0,1)';
+      inner.style.transform='translateX(-64px)';
+      del.style.opacity='1';
+    }else{
+      inner.style.transition='transform .25s cubic-bezier(.32,.72,0,1)';
+      inner.style.transform='';
+      del.style.opacity='0';
+    }
+    swipeX=0;
+  });
+  del.addEventListener('click',async()=>{
+    if(!fid)return;
+    await fetch(`${FM}/${fid}`,{method:'DELETE'});
+    _fmFiles=_fmFiles.filter(f=>f.id!==fid);
+    fmRenderFeed(_fmFiles);
+    fmShowToast('已删除');
+  });
+  inner.addEventListener('click',()=>{
+    // If swiped open, close instead of navigating
+    const cur=inner.style.transform;
+    if(cur&&cur!=='translateX(0px)'&&cur!==''){
+      inner.style.transition='transform .25s cubic-bezier(.32,.72,0,1)';
+      inner.style.transform='';
+      del.style.opacity='0';
+    }
+  },true);
 }
 
 function fmItemHtml(f){
   const ico=FM_ICO[f.type]||'📦', clr=FM_CLR[f.type]||'rgba(255,255,255,.08)';
   const time=fmtT(f.created_at);
   const pending=f.status==='pending'?'<span style="color:var(--text3);font-size:10px"> · 分析中</span>':'';
-  const click=`onclick="fmOpenDetail('${f.id}')"`;
+  const click=`onclick="fmSwipeOrOpen(this,'${f.id}')"`;
+  const wrap=(inner)=>`<div class="fm-row"><div><div class="fm-swipe-wrap" data-fid="${f.id}"><div class="fm-swipe-del">🗑</div><div class="fm-swipe-inner" ${click} style="cursor:pointer">${inner}</div></div><div class="fm-time">${time}${pending}</div></div></div>`;
 
   if(f.type==='link'){
     let domain='';try{domain=new URL(f.url||f.original_filename).hostname;}catch{}
     const preview=f.og_image
-      ?`<img src="${FM}/image-proxy?url=${encodeURIComponent(f.og_image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.outerHTML='${ico}'">`
+      ?`<img src="${FM}/image-proxy?url=${encodeURIComponent(f.og_image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.parentElement.textContent='${ico}'">`
       :ico;
-    return`<div class="fm-row"><div><div class="fm-link-card" ${click} style="cursor:pointer">
+    return wrap(`<div class="fm-link-card" style="max-width:248px">
       <div class="fm-link-preview" style="background:${clr}">${preview}</div>
       <div class="fm-link-info"><div class="fm-link-title">${esc(f.summary||f.original_filename)}</div><div class="fm-link-url">${esc(domain)}</div></div>
-    </div><div class="fm-time">${time}${pending}</div></div></div>`;
+    </div>`);
   }
 
   if(f.type==='text'){
-    return`<div class="fm-row"><div>
-      <div class="fm-text-bubble" ${click} style="cursor:pointer">${esc(f.summary||f.original_filename)}</div>
-      <div class="fm-time">${time}</div>
-    </div></div>`;
+    return wrap(`<div class="fm-text-bubble">${esc(f.summary||f.original_filename)}</div>`);
   }
 
   if(f.type==='image'){
-    return`<div class="fm-row"><div><div class="fm-img-card" ${click} style="cursor:pointer">
-      <div class="fm-img-inner" style="background:${clr}">${ico}</div>
+    const thumb=`<img src="${FM}/${f.id}/download" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${ico}'">`;
+    return wrap(`<div class="fm-img-card">
+      <div class="fm-img-inner" style="background:${clr}">${thumb}</div>
       <div class="fm-img-lbl">${esc(f.original_filename)} · ${fmSize(f.file_size)}</div>
-    </div><div class="fm-time">${time}${pending}</div></div></div>`;
+    </div>`);
   }
 
-  return`<div class="fm-row"><div><div class="fm-file-card" ${click} style="cursor:pointer">
+  return wrap(`<div class="fm-file-card">
     <div class="fm-file-ico" style="background:${clr}">${ico}</div>
     <div class="fm-file-body"><div class="fm-file-name">${esc(f.original_filename)}</div>
     <div class="fm-file-meta">${fmSize(f.file_size)}${f.file_size?' · ':''}${FM_LBL[f.type]||'文件'}</div></div>
     <button class="fm-file-open" onclick="event.stopPropagation();fmDownload('${f.id}')">↓</button>
-  </div><div class="fm-time">${time}${pending}</div></div></div>`;
+  </div>`);
 }
 
-function fmRenderSearch(results){
-  const feed=document.getElementById('fm-feed');if(!feed)return;
-  if(!results.length){feed.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">没有匹配的文件</div>';return;}
-  feed.innerHTML=results.map(r=>{
-    const ico=FM_ICO[r.type]||'📦';
-    const stars='★'.repeat(Math.round((r.match_score||0)*5))+'☆'.repeat(5-Math.round((r.match_score||0)*5));
-    return`<div style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer" onclick="fmOpenDetail('${r.id}')">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:20px">${ico}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.original_filename)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px;line-height:1.4">${esc(r.match_reason||'')}</div>
-        </div>
-        <span style="color:var(--orange);font-size:10px;letter-spacing:-.5px;flex-shrink:0">${stars}</span>
-      </div></div>`;
-  }).join('');
+function fmSwipeOrOpen(el,id){
+  // Check if this card is in swiped state
+  const transform=el.style.transform;
+  if(transform&&transform!=='translateX(0px)'&&transform!==''){
+    el.style.transition='transform .25s cubic-bezier(.32,.72,0,1)';
+    el.style.transform='';
+    const del=el.parentElement?.querySelector('.fm-swipe-del');
+    if(del)del.style.opacity='0';
+    return;
+  }
+  fmOpenDetail(id);
 }
 
 function fmConnectSse(){
@@ -3031,14 +3286,13 @@ async function fmDeleteCurrent(){
 async function fmOpenDetail(id){
   _fmDetailId=id;
   let f=_fmFiles.find(x=>x.id===id);
-  // 若不在本地缓存（搜索结果超出加载范围），从 API 取
   if(!f){
-    const detail=document.getElementById('fm-detail');
-    if(detail)detail.style.display='block';
-    document.getElementById('fd-summary').textContent='加载中…';
+    const det=document.getElementById('fm-detail');
+    if(det)det.style.display='block';
+    const body=document.getElementById('fd-body');
+    if(body)body.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">加载中…</div>';
     f=await fetch(`${FM}/${id}`).then(r=>r.ok?r.json():null).catch(()=>null);
-    if(!f){document.getElementById('fd-summary').textContent='加载失败';return;}
-    // 加入本地缓存
+    if(!f){if(body)body.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3)">加载失败</div>';return;}
     _fmFiles.push(f);
   }
   fmShowDetail(f);
@@ -3046,19 +3300,273 @@ async function fmOpenDetail(id){
 
 function fmShowDetail(f){
   const d=document.getElementById('fm-detail');if(!d)return;
-  document.getElementById('fd-ico').textContent=FM_ICO[f.type]||'📦';
-  document.getElementById('fd-name').textContent=f.original_filename;
-  document.getElementById('fd-meta').textContent=`${FM_LBL[f.type]||'文件'}${f.file_size?' · '+fmSize(f.file_size):''} · ${fmDateLbl(f.created_at)}`;
-  document.getElementById('fd-summary').textContent=f.summary||f.description||(f.status==='pending'?'AI 分析中，请稍候…':'（暂无摘要）');
-  document.getElementById('fd-keywords').textContent=(f.keywords||[]).map(k=>`#${k}`).join('  ')||'';
-  document.getElementById('fd-dl').style.display=f.type==='link'?'none':'';
-  document.getElementById('fd-open').style.display=f.type==='link'?'':'none';
+  const nameEl=document.getElementById('fd-hdr-name');
+  if(nameEl)nameEl.textContent=f.original_filename;
+
+  // Hero image
+  let heroHtml='';
+  if(f.type==='image'){
+    heroHtml=`<div class="fd-hero"><img src="${FM}/${f.id}/download" onerror="this.parentElement.style.display='none'"></div>`;
+  } else if(f.og_image){
+    heroHtml=`<div class="fd-hero"><img src="${FM}/image-proxy?url=${encodeURIComponent(f.og_image)}" onerror="this.parentElement.style.display='none'"></div>`;
+  } else {
+    heroHtml=`<div class="fd-hero"><div class="fd-hero-placeholder">${FM_ICO[f.type]||'📦'}</div></div>`;
+  }
+
+  // Name + meta
+  const metaStr=`${FM_LBL[f.type]||'文件'}${f.file_size?' · '+fmSize(f.file_size):''} · ${fmDateLbl(f.created_at)}`;
+  const nameHtml=`<div class="fd-name">${esc(f.original_filename)}</div><div class="fd-meta-row">${esc(metaStr)}</div>`;
+
+  // AI analysis section
+  let aiHtml='';
+  if(!f.status||f.status==='pending'){
+    aiHtml=`<div class="fd-section"><div class="fd-ai-pending"><div class="fd-ai-spinner"></div><span>AI 正在分析，请稍候…</span></div></div>`;
+  } else if(f.status==='failed'){
+    aiHtml=`<div class="fd-section"><div class="fd-ai-failed">AI 分析失败<br><button onclick="fmRetryAnalyze('${f.id}')" style="margin-top:8px;padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;cursor:pointer">重新分析</button></div></div>`;
+  } else {
+    if(f.summary){aiHtml+=`<div class="fd-section"><div class="fd-sec-lbl">摘要</div><div class="fd-summary-box">${esc(f.summary)}</div></div>`;}
+    if(f.description&&f.description!==f.summary){aiHtml+=`<div class="fd-section"><div class="fd-desc-box">${esc(f.description)}</div></div>`;}
+    if(f.highlights?.length){
+      const items=f.highlights.map(h=>`<li>${esc(h)}</li>`).join('');
+      aiHtml+=`<div class="fd-section"><div class="fd-sec-lbl">要点</div><ul class="fd-highlights">${items}</ul></div>`;
+    }
+    if(f.keywords?.length){
+      const chips=f.keywords.map(k=>`<span class="fd-kw">${esc(k)}</span>`).join('');
+      aiHtml+=`<div class="fd-section"><div class="fd-kw-row">${chips}</div></div>`;
+    }
+    if(!f.summary&&!f.description){aiHtml+=`<div class="fd-section" style="color:var(--text3);font-size:13px">暂无摘要</div>`;}
+  }
+
+  // WeChat "查看原文" button
+  const isWx=f.type==='link'&&f.url&&f.url.includes('mp.weixin.qq.com');
+  const wxBtn=isWx?`<button class="fd-btn fd-btn-wx" onclick="fmLoadArticle('${f.id}')">📖 查看微信原文</button>`:'';
+
+  // Action buttons
+  const isLink=f.type==='link';
+  const dlBtn=isLink?'':`<button class="fd-btn fd-btn-ghost" onclick="fmDownload('${f.id}')">⬇ 下载</button>`;
+  const openBtn=isLink?`<button class="fd-btn fd-btn-accent" onclick="window.open(${JSON.stringify(f.url||'')},'_blank')">🔗 打开链接</button>`:'';
+  const delBtn=`<button class="fd-btn fd-btn-red" onclick="fmDeleteCurrent()" title="删除">🗑</button>`;
+
+  const body=document.getElementById('fd-body');
+  if(body)body.innerHTML=heroHtml+nameHtml+aiHtml+`<div class="fd-actions">${dlBtn}${openBtn}${wxBtn}${delBtn}</div>`;
   d.style.display='block';
 }
 
 function fmCloseDetail(){
   const d=document.getElementById('fm-detail');if(d)d.style.display='none';
   _fmDetailId=null;
+}
+
+async function fmRetryAnalyze(id){
+  await fetch(`${FM}/${id}/analyze`,{method:'POST'}).catch(()=>{});
+  const f=await fetch(`${FM}/${id}`).then(r=>r.ok?r.json():null).catch(()=>null);
+  if(f){const i=_fmFiles.findIndex(x=>x.id===id);if(i>=0)_fmFiles[i]=f;fmShowDetail(f);}
+}
+
+// ── CHAT PANEL ────────────────────────────────────────────────────
+function fmOpenChat(){
+  const p=document.getElementById('fm-chat-panel');if(!p)return;
+  p.classList.add('open');
+  setTimeout(()=>document.getElementById('fmc-inp')?.focus(),300);
+}
+function fmCloseChat(){document.getElementById('fm-chat-panel')?.classList.remove('open');}
+
+const _fmPick=arr=>arr[Math.floor(Math.random()*arr.length)];
+function _fmReplyText(n){
+  if(n===0)return _fmPick(['翻遍了也没找到诶… 换个关键词试试？🔍','没有找到完全匹配的，要不换个说法描述一下？','暂时没有结果，再给我一些线索？比如文件类型或者大概内容~','嗯… 没有结果，你确定存过这个吗？再试试别的词？']);
+  if(n===1)return _fmPick(['就找到这一个，感觉挺像你要的，看看吧 👇','精准匹配！应该就是它了~','只有一个结果，但我觉得八九不离十 ✨']);
+  if(n<=3)return _fmPick([`为你找到 ${n} 个，可能就是你想要的哦 👇`,`找到啦！下面这些应该是你要找的~`,`在库里翻到了 ${n} 个相关的，看看对不对？`]);
+  return _fmPick([`找到 ${n} 个相关文件，有点多 😄 可以继续描述更多信息~`,`结果有 ${n} 个，如果不是你要的，告诉我更多细节 🎯`]);
+}
+function _fmScoreStars(s){const n=Math.round((s||0)*5);return'★'.repeat(n)+'☆'.repeat(5-n);}
+
+async function fmChatSend(){
+  const inp=document.getElementById('fmc-inp');
+  const q=(inp?.value||'').trim();if(!q)return;
+  const msgs=document.getElementById('fmc-msgs');if(!msgs)return;
+  if(inp)inp.value='';
+
+  const ub=document.createElement('div');ub.className='fmc-bubble-u';ub.textContent=q;
+  msgs.appendChild(ub);msgs.scrollTop=msgs.scrollHeight;
+
+  const loader=document.createElement('div');loader.className='fmc-msg-ai';
+  loader.innerHTML=`<div class="fmc-av">🤖</div><div class="fmc-bubble-ai"><div class="fmc-dots"><div class="fmc-dot"></div><div class="fmc-dot"></div><div class="fmc-dot"></div></div></div>`;
+  msgs.appendChild(loader);msgs.scrollTop=msgs.scrollHeight;
+
+  let results=[];
+  try{const d=await fetch(`${FM}/search?q=${encodeURIComponent(q)}`).then(r=>r.json());results=d.results||[];}catch{}
+  loader.remove();
+
+  const replyText=_fmReplyText(results.length);
+  const aiRow=document.createElement('div');aiRow.className='fmc-msg-ai';
+  const av=document.createElement('div');av.className='fmc-av';av.textContent='🤖';
+  const bubble=document.createElement('div');bubble.className='fmc-bubble-ai';
+  aiRow.appendChild(av);aiRow.appendChild(bubble);msgs.appendChild(aiRow);
+
+  const delay=Math.max(18,Math.min(40,1200/replyText.length));
+  for(let i=0;i<=replyText.length;i++){bubble.textContent=replyText.slice(0,i);await new Promise(r=>setTimeout(r,delay));msgs.scrollTop=msgs.scrollHeight;}
+
+  if(results.length){
+    const cards=document.createElement('div');cards.style.cssText='display:flex;flex-direction:column;gap:7px;margin-top:10px';
+    results.forEach(r=>{
+      const c=document.createElement('div');c.className='fmc-result-card';
+      c.innerHTML=`<div class="fmc-result-ico">${FM_ICO[r.type]||'📦'}</div><div class="fmc-result-body"><div class="fmc-result-name">${esc(r.original_filename||r.filename||'')}</div><div class="fmc-result-reason">${esc(r.match_reason||'')}</div></div><div class="fmc-result-stars">${_fmScoreStars(r.match_score)}</div>`;
+      c.onclick=()=>{fmCloseChat();fmOpenDetail(r.id);};
+      cards.appendChild(c);
+    });
+    aiRow.appendChild(cards);
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── CATEGORY PANEL ────────────────────────────────────────────────
+let _fmCatActive=null;
+function fmOpenCat(){
+  _fmCatActive=null;
+  const p=document.getElementById('fm-cat-panel');if(!p)return;
+  p.classList.add('open');
+  fmRenderCat();
+}
+function fmCloseCat(){document.getElementById('fm-cat-panel')?.classList.remove('open');_fmCatActive=null;}
+
+function fmRenderCat(){
+  const body=document.getElementById('fmcat-body');if(!body)return;
+  const typeCounts={};
+  _fmFiles.forEach(f=>{typeCounts[f.type]=(typeCounts[f.type]||0)+1;});
+  const CATS=[
+    {type:'image',lbl:'图片',ico:'🖼',clr:'rgba(139,114,255,.15)'},
+    {type:'video',lbl:'视频',ico:'🎬',clr:'rgba(255,110,122,.15)'},
+    {type:'document',lbl:'文档',ico:'📄',clr:'rgba(255,170,92,.15)'},
+    {type:'audio',lbl:'音频',ico:'🎵',clr:'rgba(94,234,181,.15)'},
+    {type:'link',lbl:'链接',ico:'🔗',clr:'rgba(100,170,255,.15)'},
+    {type:'text',lbl:'文字',ico:'💬',clr:'rgba(255,255,255,.08)'},
+    {type:'other',lbl:'其他',ico:'📦',clr:'rgba(255,255,255,.06)'},
+  ];
+  const visible=CATS.filter(c=>typeCounts[c.type]>0).sort((a,b)=>(typeCounts[b.type]||0)-(typeCounts[a.type]||0));
+  let html='<div class="fmcat-grid">';
+  visible.forEach(c=>{
+    html+=`<div class="fmcat-tile" style="background:${c.clr}" data-cat="${c.type}" onclick="fmCatToggle('${c.type}',this)"><span class="fmcat-tile-ico">${c.ico}</span><div class="fmcat-tile-lbl">${c.lbl}</div><div class="fmcat-tile-cnt">${typeCounts[c.type]} 个</div></div>`;
+  });
+  html+='</div><div id="fmcat-timeline"></div>';
+  body.innerHTML=html;
+}
+
+function fmCatToggle(type,tile){
+  if(_fmCatActive===type){
+    _fmCatActive=null;
+    document.getElementById('fmcat-timeline').innerHTML='';
+    document.querySelectorAll('.fmcat-tile').forEach(t=>t.style.outline='');
+    return;
+  }
+  _fmCatActive=type;
+  document.querySelectorAll('.fmcat-tile').forEach(t=>t.style.outline='');
+  if(tile)tile.style.outline='2px solid var(--accent)';
+  // Build year→month→day tree
+  const files=_fmFiles.filter(f=>f.type===type);
+  const byYear={};
+  files.forEach(f=>{
+    const date=(f.created_at||'').slice(0,10);if(!date)return;
+    const [y,m,d]=date.split('-');
+    if(!byYear[y])byYear[y]={};if(!byYear[y][m])byYear[y][m]={};
+    byYear[y][m][d]=(byYear[y][m][d]||0)+1;
+  });
+  const tl=document.getElementById('fmcat-timeline');if(!tl)return;
+  if(!Object.keys(byYear).length){tl.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">暂无文件</div>';return;}
+  let html='';
+  Object.keys(byYear).sort((a,b)=>b-a).forEach(year=>{
+    const total=Object.values(byYear[year]).reduce((s,mv)=>s+Object.values(mv).reduce((s2,c)=>s2+c,0),0);
+    const yid=`fy-${year}`;
+    html+=`<div class="fmcat-tl-hdr open" onclick="this.classList.toggle('open');document.getElementById('${yid}').style.display=this.classList.contains('open')?'':'none'">${year}年 <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:4px">${total} 个</span></div><div id="${yid}">`;
+    Object.keys(byYear[year]).sort((a,b)=>b-a).forEach(month=>{
+      html+=`<div class="fmcat-month"><div class="fmcat-month-lbl">${parseInt(month)}月</div>`;
+      Object.keys(byYear[year][month]).sort((a,b)=>b-a).forEach(day=>{
+        const dateStr=`${year}-${month}-${day}`,cnt=byYear[year][month][day];
+        html+=`<div class="fmcat-day-row" onclick="fmCloseCat();fmOpenDay('${dateStr}','${type}')"><div class="fmcat-day-dot"></div><span class="fmcat-day-lbl">${parseInt(day)}日</span><span class="fmcat-day-cnt">${cnt} 个</span><span class="fmcat-day-arr">›</span></div>`;
+      });
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  tl.innerHTML=html;
+}
+
+// ── DAY PANEL ─────────────────────────────────────────────────────
+async function fmOpenDay(date,type=''){
+  const p=document.getElementById('fm-day-panel');if(!p)return;
+  p.classList.add('open');
+  const ttl=document.getElementById('fmday-ttl'),badge=document.getElementById('fmday-badge');
+  if(ttl)ttl.textContent=date;
+  if(badge){if(type){badge.textContent=FM_LBL[type]||type;badge.style.display='';}else badge.style.display='none';}
+  const list=document.getElementById('fmday-list');
+  if(list)list.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">加载中…</div>';
+  let files=await fetch(`${FM}/by-date/${date}`).then(r=>r.ok?r.json():[]).catch(()=>[]);
+  if(type)files=files.filter(f=>f.type===type);
+  fmRenderDay(files);
+}
+function fmCloseDay(){document.getElementById('fm-day-panel')?.classList.remove('open');}
+
+function fmRenderDay(files){
+  const list=document.getElementById('fmday-list');if(!list)return;
+  if(!files.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">暂无文件</div>';return;}
+  list.innerHTML=files.map(f=>{
+    const ico=FM_ICO[f.type]||'📦',clr=FM_CLR[f.type]||'rgba(255,255,255,.08)';
+    const thumb=f.type==='image'
+      ?`<img src="${FM}/${f.id}/download" onerror="this.parentElement.textContent='${ico}'">`
+      :f.og_image?`<img src="${FM}/image-proxy?url=${encodeURIComponent(f.og_image)}" onerror="this.parentElement.textContent='${ico}'">`
+      :ico;
+    const sc=f.status==='ready'?'ready':f.status==='failed'?'failed':'pending';
+    return `<div class="fmday-card" onclick="fmCloseDay();fmOpenDetail('${f.id}')">
+      <div class="fmday-thumb" style="background:${clr}">${thumb}</div>
+      <div class="fmday-info">
+        <div class="fmday-name">${esc(f.original_filename)}</div>
+        <div class="fmday-meta"><span>${FM_LBL[f.type]||'文件'}</span>${f.file_size?`<span>${fmSize(f.file_size)}</span>`:''}</div>
+        ${f.summary?`<div class="fmday-sum">${esc(f.summary)}</div>`:''}
+      </div>
+      <div class="fmday-status ${sc}"></div>
+    </div>`;
+  }).join('');
+}
+
+// ── WECHAT ARTICLE OVERLAY ────────────────────────────────────────
+async function fmLoadArticle(id){
+  const overlay=document.getElementById('fm-wx-overlay');if(!overlay)return;
+  overlay.style.display='block';
+  const loading=document.getElementById('wx-loading'),body=document.getElementById('wx-body'),ttlEl=document.getElementById('wx-ttl-text');
+  if(loading)loading.style.display='block';if(body)body.style.display='none';
+  const data=await fetch(`${FM}/${id}/extract`).then(r=>r.ok?r.json():null).catch(()=>null);
+  if(loading)loading.style.display='none';
+  if(!data){if(body){body.style.display='block';body.innerHTML='<p style="color:var(--text3)">加载失败，请稍后重试</p>';}return;}
+  if(ttlEl)ttlEl.textContent=data.title||'查看原文';
+  if(body){
+    body.style.display='block';
+    let meta='';
+    if(data.account||data.author)meta=`<div class="wx-meta">${esc(data.account||'')}${data.author?' · '+esc(data.author):''}</div>`;
+    body.innerHTML=meta+_fmMd2Html(data.content||'');
+  }
+}
+function fmCloseWx(){const o=document.getElementById('fm-wx-overlay');if(o)o.style.display='none';}
+
+function _fmInline(t){
+  return t
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img alt="$1" src="$2">')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*\n]+?)\*/g,'<em>$1</em>');
+}
+function _fmMd2Html(md){
+  if(!md)return'';
+  return md.split(/\n\n+/).map(block=>{
+    const lines=block.split('\n');
+    const f=lines[0];
+    if(/^### /.test(f))return`<h3>${_fmInline(f.slice(4))}</h3>`;
+    if(/^## /.test(f))return`<h2>${_fmInline(f.slice(3))}</h2>`;
+    if(/^# /.test(f))return`<h1 style="font-size:22px;font-weight:800;margin:20px 0 10px">${_fmInline(f.slice(2))}</h1>`;
+    if(/^> /.test(f))return`<blockquote>${lines.map(l=>/^> /.test(l)?_fmInline(l.slice(2)):_fmInline(l)).join('<br>')}</blockquote>`;
+    if(/^[-*] /.test(f))return`<ul>${lines.filter(l=>/^[-*] /.test(l)).map(l=>`<li>${_fmInline(l.slice(2))}</li>`).join('')}</ul>`;
+    if(/^---+$/.test(f.trim()))return'<hr>';
+    if(/^!\[/.test(f))return lines.map(l=>_fmInline(l)).join('');
+    return`<p>${lines.map(l=>_fmInline(l)).join('<br>')}</p>`;
+  }).join('\n');
 }
 
 // ── KICK OFF ────────────────────────────────────────────────────────
