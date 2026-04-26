@@ -436,6 +436,29 @@ def _wechat_fallback(url: str, reason: str = "") -> dict:
     }
 
 
+def _parse_arbor_response(resp_data: dict) -> str:
+    """Extract actual answer from Arbor /models/chat response.
+
+    Arbor returns {"model": ..., "content": ..., "reasoning_content": ...}
+    When content is empty but reasoning_content has thinking, extract the answer.
+    """
+    content = resp_data.get("content", "").strip()
+    if content:
+        return content
+
+    reasoning = resp_data.get("reasoning_content", "").strip()
+    if not reasoning:
+        return ""
+
+    if "<|reserved_200|>" in reasoning:
+        return reasoning.split("<|reserved_200|>")[-1].strip()
+
+    if "</think>" in reasoning:
+        return reasoning.split("</think>")[-1].strip()
+
+    return reasoning.strip()
+
+
 async def _ai_summarize_wechat(title: str, author: str, pub_time: str, content: str) -> dict:
     """Send extracted article text to platform LLM for structured summarization."""
     import json
@@ -470,7 +493,7 @@ async def _ai_summarize_wechat(title: str, author: str, pub_time: str, content: 
                 },
             )
             resp.raise_for_status()
-            raw = resp.json().get("content", "")
+            raw = _parse_arbor_response(resp.json())
         m = re.search(r"\{[\s\S]*\}", raw)
         if m:
             return json.loads(m.group())

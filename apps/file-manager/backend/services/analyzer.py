@@ -19,6 +19,59 @@ _ARBOR_URL = os.getenv("ARBOR_URL", "http://nervus-arbor:8090")
 _LLAMA_URL = os.getenv("LLAMA_URL", "http://nervus-llama:8080")
 
 
+def _parse_llm_response(resp_data: dict) -> str:
+    """Extract actual answer from LLM response, handling Qwen thinking mode.
+
+    Qwen3.5 outputs thinking in reasoning_content. The real answer is:
+    1. In message.content (if non-empty, no thinking)
+    2. After <|reserved_200|> in reasoning_content (thinking suppressed)
+    3. After last </think> in reasoning_content (fallback)
+    """
+    msg = resp_data.get("choices", [{}])[0].get("message", {})
+    content = msg.get("content", "").strip()
+    if content:
+        return content
+
+    # Fallback: parse thinking content from reasoning_content
+    reasoning = msg.get("reasoning_content", "").strip()
+    if not reasoning:
+        return ""
+
+    # Try Qwen3 thinking format: answer is after <|reserved_200|>
+    if "<|reserved_200|>" in reasoning:
+        return reasoning.split("<|reserved_200|>")[-1].strip()
+
+    # Fallback: answer is after last </think>
+    if "</think>" in reasoning:
+        return reasoning.split("</think>")[-1].strip()
+
+    # Last resort: return as-is
+    return reasoning.strip()
+
+
+def _parse_arbor_response(resp_data: dict) -> str:
+    """Extract actual answer from Arbor /models/chat response.
+
+    Arbor returns {"model": ..., "content": ..., "reasoning_content": ...}
+    When content is empty but reasoning_content has thinking, extract the answer.
+    """
+    content = resp_data.get("content", "").strip()
+    if content:
+        return content
+
+    reasoning = resp_data.get("reasoning_content", "").strip()
+    if not reasoning:
+        return ""
+
+    if "<|reserved_200|>" in reasoning:
+        return reasoning.split("<|reserved_200|>")[-1].strip()
+
+    if "</think>" in reasoning:
+        return reasoning.split("</think>")[-1].strip()
+
+    return reasoning.strip()
+
+
 def _chat(messages: list, system: str = "", max_tokens: int = 512) -> str:
     msgs = []
     if system:
@@ -35,7 +88,7 @@ def _chat(messages: list, system: str = "", max_tokens: int = 512) -> str:
             json={"model": "qwen3.5", "messages": msgs, "max_tokens": max_tokens},
         )
         resp.raise_for_status()
-        return resp.json().get("content", "")
+        return _parse_arbor_response(resp.json())
 
 
 def _vision_chat(messages: list, max_tokens: int = 512) -> str:
@@ -59,7 +112,7 @@ def _vision_chat(messages: list, max_tokens: int = 512) -> str:
             },
         )
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        return _parse_llm_response(resp.json())
 
 
 def _extract_json(text: str) -> dict:
@@ -159,11 +212,23 @@ def _analyze_image(meta: FileSummary) -> dict:
 
     suffix = file_path.suffix.lower().lstrip(".")
     media_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
-                 "gif": "image/gif", "webp": "image/webp"}
+                 "gif": "image/jpeg", "webp": "image/webp"}
     media_type = media_map.get(suffix, "image/jpeg")
 
-    with open(file_path, "rb") as f:
-        image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+    # Resize to 128x128 max to fit within 1024-token context window of Qwen3.5-4B
+    try:
+        from PIL import Image
+        import io
+        with Image.open(file_path) as img:
+            img.thumbnail((128, 128), Image.LANCZOS)
+            buf = io.BytesIO()
+            fmt = "PNG" if suffix == "png" else "JPEG"
+            img.save(buf, format=fmt, quality=60)
+            image_data = base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception:
+        # Fallback: use original file if PIL fails
+        with open(file_path, "rb") as f:
+            image_data = base64.b64encode(f.read()).decode("utf-8")
 
     content = _vision_chat([{
         "role": "user",
@@ -172,7 +237,7 @@ def _analyze_image(meta: FileSummary) -> dict:
             {
                 "type": "text",
                 "text": (
-                    "请分析这张图片，生成JSON格式简介：\n"
+                    "/no_think 请分析这张图片，生成JSON格式简介：\n"
                     "{\n"
                     '  "summary": "一句话描述（20字内）",\n'
                     '  "description": "详细描述（100字内）",\n'
