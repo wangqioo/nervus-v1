@@ -476,6 +476,9 @@ services:
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
       WHISPER_URL: http://nervus-whisper:8081
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     healthcheck:
       interval: 30s
       retries: 5

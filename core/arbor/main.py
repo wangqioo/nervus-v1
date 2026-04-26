@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 import uvicorn
@@ -52,7 +53,8 @@ async def lifespan(app: FastAPI):
     app.state.app_registry = AppRegistry()
     await app.state.app_registry.init(postgres_client.pool)
 
-    app.state.model_service = ModelService(settings.llm_url)
+    models_config = str(Path(settings.config_dir) / "models.json")
+    app.state.model_service = ModelService(settings.llm_url, models_config_path=models_config)
 
     app.state.event_service = EventService()
     await app.state.event_service.init(postgres_client.pool)

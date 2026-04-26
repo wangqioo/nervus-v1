@@ -9,8 +9,18 @@ router = APIRouter()
 
 @router.get("")
 async def list_models(request: Request):
-    models = request.app.state.model_service.list_models()
+    svc = request.app.state.model_service
+    models = svc.list_models()
     return {"count": len(models), "models": [m.model_dump() for m in models]}
+
+
+@router.get("/defaults")
+async def model_defaults(request: Request):
+    svc = request.app.state.model_service
+    return {
+        "default_text": svc._default_text,
+        "default_vision": svc._default_vision,
+    }
 
 
 @router.get("/status")

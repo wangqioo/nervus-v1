@@ -1,0 +1,48 @@
+{
+  "default_text": "qwen3.5",
+  "default_vision": "qwen3.5",
+  "models": [
+    {
+      "id": "qwen3.5",
+      "name": "Qwen 3.5 4B（本地）",
+      "provider": "llama.cpp",
+      "vision": true,
+      "context_length": 4096,
+      "auto_extra": {
+        "chat_template_kwargs": { "enable_thinking": false }
+      }
+    }
+  ],
+  "cloud": [
+    {
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat（云端）",
+      "provider": "openai_compat",
+      "endpoint": "https://api.deepseek.com",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "vision": false,
+      "context_length": 65536,
+      "auto_extra": {}
+    },
+    {
+      "id": "glm-4-flash",
+      "name": "GLM-4 Flash（云端）",
+      "provider": "openai_compat",
+      "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key_env": "ZHIPUAI_API_KEY",
+      "vision": false,
+      "context_length": 128000,
+      "auto_extra": {}
+    },
+    {
+      "id": "glm-4v-flash",
+      "name": "GLM-4V Flash（云端视觉）",
+      "provider": "openai_compat",
+      "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key_env": "ZHIPUAI_API_KEY",
+      "vision": true,
+      "context_length": 8192,
+      "auto_extra": {}
+    }
+  ]
+}
