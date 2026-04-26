@@ -1,0 +1,40 @@
+[
+  {
+    "id": "meeting-recording-to-notes",
+    "description": "会议录音处理完成 → 生成纪要 → 写知识库",
+    "trigger": "meeting.recording.processed",
+    "steps": [
+      {
+        "app": "meeting-notes",
+        "action": "transcribe",
+        "input": { "audio_path": "$.audio_path", "meeting_id": "$.meeting_id" }
+      },
+      {
+        "emit": "meeting.notes.ready",
+        "payload": "$.result"
+      },
+      {
+        "notify": "global_popup",
+        "title": "会议纪要已生成",
+        "body": "$.result.title"
+      }
+    ]
+  },
+  {
+    "id": "meeting-notes-to-knowledge",
+    "description": "会议纪要就绪 → 写入知识库",
+    "trigger": "meeting.notes.ready",
+    "steps": [
+      {
+        "app": "knowledge-base",
+        "action": "add_item",
+        "input": {
+          "type": "meeting",
+          "title": "$.title",
+          "content": "$.transcript",
+          "summary": "$.summary"
+        }
+      }
+    ]
+  }
+]

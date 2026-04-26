@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from .schemas import RegisterAppRequest
 
@@ -51,3 +51,11 @@ async def get_app_status(app_id: str, request: Request):
     if status is None:
         raise HTTPException(status_code=404, detail=f"App {app_id} is not registered")
     return status.model_dump(mode="json")
+
+
+@router.post("/{app_id}/heartbeat")
+async def heartbeat(app_id: str, request: Request):
+    ok = await request.app.state.app_registry.update_heartbeat(app_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"App {app_id} is not registered")
+    return {"status": "ok", "app_id": app_id}

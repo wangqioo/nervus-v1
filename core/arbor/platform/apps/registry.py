@@ -90,6 +90,40 @@ class AppRegistry:
     def get_app(self, app_id: str) -> RegisteredApp | None:
         return self._apps.get(app_id)
 
+    async def update_heartbeat(self, app_id: str) -> bool:
+        app = self._apps.get(app_id)
+        if app is None:
+            return False
+        self._apps[app_id] = app.model_copy(update={"status": AppStatus.online})
+        if self._pool:
+            await self._pool.execute(
+                "UPDATE app_registry SET status = 'online', last_heartbeat = NOW() WHERE app_id = $1",
+                app_id,
+            )
+        return True
+
+    async def mark_offline_stale(self, timeout_seconds: int = 120) -> int:
+        """将超时未心跳的 App 标为 offline，返回影响的数量。"""
+        if self._pool is None:
+            return 0
+        rows = await self._pool.fetch(
+            """
+            UPDATE app_registry
+            SET status = 'offline'
+            WHERE status = 'online'
+              AND last_heartbeat < NOW() - ($1 || ' seconds')::interval
+              AND app_id != 'nervus-system'
+            RETURNING app_id
+            """,
+            str(timeout_seconds),
+        )
+        for row in rows:
+            app = self._apps.get(row["app_id"])
+            if app:
+                self._apps[row["app_id"]] = app.model_copy(update={"status": AppStatus.offline})
+            logger.info("marked %s as offline (heartbeat timeout)", row["app_id"])
+        return len(rows)
+
     async def get_status(self, app_id: str) -> AppStatusResponse | None:
         app = self.get_app(app_id)
         if app is None:

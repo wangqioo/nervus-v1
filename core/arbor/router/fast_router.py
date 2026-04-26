@@ -6,7 +6,7 @@
 from __future__ import annotations
 import logging
 
-from router.registry import AppRegistry
+from platform.apps.registry import AppRegistry
 from executor.flow_executor import FlowExecutor
 from executor.flow_loader import FlowLoader
 
@@ -28,8 +28,6 @@ class FastRouter:
         尝试快速路由。
         返回 True 表示找到匹配并已执行，False 表示未匹配。
         """
-        from executor.flow_loader import FlowLoader
-
         matched_flows = []
         for flow in self._flows.values():
             trigger = flow.get("trigger", "")

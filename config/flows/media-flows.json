@@ -1,0 +1,35 @@
+[
+  {
+    "id": "photo-food-to-calorie",
+    "description": "相片识别到食物 → 热量分析",
+    "trigger": "media.photo.classified",
+    "condition": { "tags_contains": ["food"] },
+    "steps": [
+      {
+        "app": "calorie-tracker",
+        "action": "analyze_meal",
+        "input": { "photo_path": "$.photo_path", "tags": "$.tags" }
+      },
+      {
+        "emit": "health.calorie.meal_logged",
+        "payload": "$.result"
+      }
+    ]
+  },
+  {
+    "id": "photo-to-life-memory",
+    "description": "相片分类完成 → 写入生活记忆",
+    "trigger": "media.photo.classified",
+    "steps": [
+      {
+        "app": "life-memory",
+        "action": "add_event",
+        "input": {
+          "type": "photo",
+          "title": "$.title",
+          "metadata": { "photo_path": "$.photo_path", "tags": "$.tags" }
+        }
+      }
+    ]
+  }
+]

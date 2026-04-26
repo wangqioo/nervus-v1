@@ -10,7 +10,7 @@ from datetime import datetime
 
 import httpx
 
-from router.registry import AppRegistry
+from platform.apps.registry import AppRegistry
 
 logger = logging.getLogger("nervus.arbor.executor")
 

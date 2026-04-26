@@ -12,6 +12,7 @@ class Settings:
     config_dir: str
     app_port: int
     llm_url: str
+    flows_dir: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -22,4 +23,5 @@ class Settings:
             config_dir=os.getenv("NERVUS_CONFIG_DIR", "/app/config"),
             app_port=int(os.getenv("APP_PORT", os.getenv("ARBOR_PORT", "8090"))),
             llm_url=os.getenv("LLAMA_URL", "http://nervus-llama:8080"),
+            flows_dir=os.getenv("NERVUS_FLOWS_DIR", "/app/config/flows"),
         )

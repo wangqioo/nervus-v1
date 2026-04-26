@@ -12,7 +12,7 @@ from collections import deque
 
 import httpx
 
-from router.registry import AppRegistry
+from platform.apps.registry import AppRegistry
 from executor.flow_executor import FlowExecutor
 
 logger = logging.getLogger("nervus.arbor.dynamic_router")
@@ -207,9 +207,7 @@ class DynamicRouter:
 
     def _get_apps_summary(self) -> str:
         lines = []
-        for app_info in self.registry.get_all_apps():
-            manifest = app_info.get("manifest", {})
-            app_id = manifest.get("id", "?")
-            actions = [a["name"] for a in manifest.get("actions", [])]
-            lines.append(f"- {app_id}: actions={actions}")
+        for app in self.registry.list_apps():
+            actions = [a.get("name", "") for a in app.manifest.capabilities.actions]
+            lines.append(f"- {app.id}: actions={actions}")
         return "\n".join(lines) if lines else "无"

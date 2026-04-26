@@ -9,7 +9,7 @@ import logging
 
 import httpx
 
-from router.registry import AppRegistry
+from platform.apps.registry import AppRegistry
 from executor.flow_executor import FlowExecutor
 
 logger = logging.getLogger("nervus.arbor.semantic_router")
@@ -149,11 +149,8 @@ class SemanticRouter:
 
     def _get_apps_summary(self) -> str:
         lines = []
-        for app_info in self.registry.get_all_apps():
-            manifest = app_info.get("manifest", {})
-            app_id = manifest.get("id", "?")
-            name = manifest.get("name", app_id)
-            subscribes = [s["subject"] for s in manifest.get("subscribes", [])]
-            actions = [a["name"] for a in manifest.get("actions", [])]
-            lines.append(f"- {app_id} ({name}): 订阅={subscribes}, actions={actions}")
+        for app in self.registry.list_apps():
+            consumes = app.manifest.capabilities.consumes
+            actions = [a.get("name", "") for a in app.manifest.capabilities.actions]
+            lines.append(f"- {app.id} ({app.name}): 订阅={consumes}, actions={actions}")
         return "\n".join(lines) if lines else "（无已注册 App）"

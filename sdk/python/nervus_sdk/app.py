@@ -152,6 +152,7 @@ class NervusApp:
             await subscribe(subject, handler, filter_fn=filter_fn, queue_group=self.app_id)
 
         asyncio.create_task(self._register_with_retry())
+        asyncio.create_task(self._heartbeat_loop())
         logger.info("[%s] ready on port %s", self.app_id, self.config.port)
 
     async def _shutdown(self):
@@ -160,6 +161,16 @@ class NervusApp:
         await ctx_disconnect()
         await mem_disconnect()
         await self.llm.close()
+
+    async def _heartbeat_loop(self, interval: int = 60) -> None:
+        await asyncio.sleep(interval)
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    await client.post(f"{self.config.arbor_url}/apps/{self.app_id}/heartbeat")
+            except Exception as exc:
+                logger.debug("[%s] heartbeat failed: %s", self.app_id, exc)
+            await asyncio.sleep(interval)
 
     async def _register_with_retry(self, max_attempts: int = 5) -> None:
         manifest_data = self._manifest.model_dump() if self._manifest else {

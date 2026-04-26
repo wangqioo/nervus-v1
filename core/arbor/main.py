@@ -6,7 +6,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
 
 from infra import nats_client, postgres_client, redis_client
@@ -22,6 +22,11 @@ from platform.events.service import EventService
 from platform.events.routes import router as events_router
 from platform.knowledge.service import KnowledgeService
 from platform.knowledge.routes import router as knowledge_router
+from router.fast_router import FastRouter
+from router.semantic_router import SemanticRouter
+from router.dynamic_router import DynamicRouter
+from executor.flow_executor import FlowExecutor
+from executor.flow_loader import FlowLoader
 from api import notify_api, status_api
 
 logging.basicConfig(
@@ -54,7 +59,21 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_service = KnowledgeService()
     await app.state.knowledge_service.init(postgres_client.pool)
 
+    flow_loader = FlowLoader(settings.flows_dir)
+    flow_loader.load_all()
+    flow_executor = FlowExecutor(app.state.app_registry)
+    fast_router = FastRouter(app.state.app_registry, flow_executor)
+    fast_router.load_flows(flow_loader.flows)
+    semantic_router = SemanticRouter(app.state.app_registry, flow_executor)
+    semantic_router.set_llama_url(settings.llm_url)
+    dynamic_router = DynamicRouter(app.state.app_registry, flow_executor)
+    dynamic_router._llama_url = settings.llm_url
+    app.state.fast_router = fast_router
+    app.state.semantic_router = semantic_router
+    app.state.dynamic_router = dynamic_router
+
     asyncio.create_task(start_bus_listener())
+    asyncio.create_task(start_heartbeat_watcher())
     start_mdns(port=settings.app_port)
 
     logger.info("Arbor Core Platform v0.1 ready")
@@ -83,6 +102,23 @@ app.include_router(notify_api.router, prefix="/notify", tags=["Notify"])
 app.include_router(status_api.router, prefix="", tags=["Status"])
 
 
+@app.get("/flows", tags=["Flows"])
+async def list_flows(request: Request):
+    fast: FastRouter = request.app.state.fast_router
+    flows = list(fast._flows.values())
+    return {"count": len(flows), "flows": flows}
+
+
+@app.post("/flows/reload", tags=["Flows"])
+async def reload_flows(request: Request):
+    settings: Settings = request.app.state.settings
+    loader = FlowLoader(settings.flows_dir)
+    loader.load_all()
+    fast: FastRouter = request.app.state.fast_router
+    fast.load_flows(loader.flows)
+    return {"status": "ok", "count": len(loader.flows)}
+
+
 async def start_bus_listener():
     nc = nats_client.client
     if nc is None:
@@ -90,22 +126,45 @@ async def start_bus_listener():
         return
 
     event_service: EventService = app.state.event_service
+    fast_router: FastRouter = app.state.fast_router
+    semantic_router: SemanticRouter = app.state.semantic_router
+    dynamic_router: DynamicRouter = app.state.dynamic_router
 
     async def on_event(msg):
         try:
             data = json.loads(msg.data.decode())
             logger.debug("received bus event %s: %s", msg.subject, data)
+
             await event_service.ingest(
                 subject=msg.subject,
                 payload=data,
                 source_app=data.get("source_app", "bus"),
             )
+
+            event_envelope = {"subject": msg.subject, "payload": data}
+            if await fast_router.route(msg.subject, event_envelope):
+                return
+            if await semantic_router.route(msg.subject, event_envelope):
+                return
+            await dynamic_router.route(msg.subject, event_envelope)
         except Exception:
             logger.exception("failed to process bus event")
 
     for subject in ["media.>", "meeting.>", "health.>", "context.>", "memory.>", "knowledge.>", "system.>", "schedule.>"]:
         await nc.subscribe(subject, cb=on_event)
         logger.info("subscribed to %s", subject)
+
+
+async def start_heartbeat_watcher():
+    registry: AppRegistry = app.state.app_registry
+    while True:
+        await asyncio.sleep(60)
+        try:
+            n = await registry.mark_offline_stale(timeout_seconds=120)
+            if n:
+                logger.info("heartbeat watcher: marked %s app(s) offline", n)
+        except Exception:
+            logger.exception("heartbeat watcher error")
 
 
 if __name__ == "__main__":

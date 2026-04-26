@@ -1,0 +1,31 @@
+[
+  {
+    "id": "meal-logged-context-update",
+    "description": "热量记录 → 更新用户状态上下文",
+    "trigger": "health.calorie.meal_logged",
+    "steps": [
+      {
+        "context": "set",
+        "field": "physical.last_meal",
+        "value": "$.timestamp"
+      },
+      {
+        "context": "set",
+        "field": "physical.calorie_today",
+        "value": "$.calorie_today"
+      }
+    ]
+  },
+  {
+    "id": "reminder-triggered-notify",
+    "description": "提醒触发 → 全局弹窗",
+    "trigger": "schedule.reminder.triggered",
+    "steps": [
+      {
+        "notify": "global_popup",
+        "title": "$.title",
+        "body": "$.body"
+      }
+    ]
+  }
+]
