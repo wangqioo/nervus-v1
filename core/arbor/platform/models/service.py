@@ -8,7 +8,10 @@ from typing import Any
 
 import httpx
 
+from infra import redis_client
 from .schemas import ChatRequest, ChatResponse, ModelConfig, ModelInfo, ModelStatus
+
+_REDIS_KEY_PREFIX = "nervus:model:key:"
 
 logger = logging.getLogger("nervus.platform.models")
 
@@ -51,7 +54,6 @@ class ModelService:
                 provider="llama.cpp",
                 vision=True,
                 context_length=4096,
-                auto_extra={"chat_template_kwargs": {"enable_thinking": False}},
             )
 
     # ── public API ────────────────────────────────────────────────────────────
@@ -75,7 +77,7 @@ class ModelService:
                 if cfg.provider == "llama.cpp":
                     status = await self._ping_local(client)
                 else:
-                    api_key = os.getenv(cfg.api_key_env, "") if cfg.api_key_env else ""
+                    api_key = await self.get_api_key(cfg.id)
                     status = ModelStatus.online if api_key else ModelStatus.offline
                 results.append(ModelInfo(
                     id=cfg.id,
@@ -96,6 +98,43 @@ class ModelService:
         except Exception as exc:
             logger.debug("local model health check failed: %s", exc)
         return ModelStatus.offline
+
+    def set_defaults(self, text: str | None = None, vision: str | None = None) -> None:
+        if text and text in self._configs:
+            self._default_text = text
+        if vision and vision in self._configs:
+            self._default_vision = vision
+
+    async def set_api_key(self, model_id: str, api_key: str) -> bool:
+        if model_id not in self._configs:
+            return False
+        try:
+            await redis_client.set(f"{_REDIS_KEY_PREFIX}{model_id}", api_key)
+        except Exception as exc:
+            logger.warning("redis key write failed: %s", exc)
+        return True
+
+    async def get_api_key(self, model_id: str) -> str:
+        cfg = self._configs.get(model_id)
+        if cfg is None:
+            return ""
+        # Redis takes precedence over env var
+        try:
+            val = await redis_client.get(f"{_REDIS_KEY_PREFIX}{model_id}")
+            if val:
+                return val
+        except Exception:
+            pass
+        return os.getenv(cfg.api_key_env, "") if cfg.api_key_env else ""
+
+    async def test(self, model_id: str, prompt: str = "你好") -> ChatResponse:
+        req = ChatRequest(
+            model=model_id,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=64,
+            temperature=0.3,
+        )
+        return await self.chat(req)
 
     async def chat(self, req: ChatRequest) -> ChatResponse:
         model_id = req.model or (
@@ -139,7 +178,7 @@ class ModelService:
         return _parse_openai_response(data, cfg)
 
     async def _chat_cloud(self, req: ChatRequest, cfg: ModelConfig) -> ChatResponse:
-        api_key = os.getenv(cfg.api_key_env, "") if cfg.api_key_env else ""
+        api_key = await self.get_api_key(cfg.id)
         if not api_key:
             return ChatResponse(model=cfg.id, provider=cfg.provider, content="",
                                 error=f"API key not set (env: {cfg.api_key_env})")

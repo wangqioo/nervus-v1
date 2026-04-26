@@ -455,16 +455,17 @@ async def _ai_summarize_wechat(title: str, author: str, pub_time: str, content: 
         '  "highlights": ["亮点1", "亮点2"]\n'
         "}"
     )
+    messages = [
+        {"role": "system", "content": "你是一个公众号文章摘要助手，擅长提炼文章核心观点。"},
+        {"role": "user", "content": f"/no_think {prompt}"},
+    ]
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=300) as client:
             resp = await client.post(
                 f"{arbor_url}/models/chat",
                 json={
                     "model": "qwen3.5",
-                    "messages": [
-                        {"role": "system", "content": "你是一个公众号文章摘要助手，擅长提炼文章核心观点。"},
-                        {"role": "user", "content": prompt},
-                    ],
+                    "messages": messages,
                     "max_tokens": 512,
                 },
             )

@@ -679,6 +679,37 @@ services:
     volumes:
     - files-data:/app/data/files
     image: nervus-app-files:latest
+  app-model-manager:
+    build:
+      context: .
+      dockerfile: apps/model-manager/Dockerfile
+    image: nervus-app-model-manager:latest
+    container_name: nervus-app-model-manager
+    entrypoint: []
+    depends_on:
+      - arbor-core
+    environment:
+      APP_PORT: "8016"
+      APP_INTERNAL_URL: "http://nervus-app-model-manager:8016"
+      NATS_URL: nats://nervus-nats:4222
+      REDIS_URL: redis://nervus-redis:6379
+      POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
+      ARBOR_URL: http://nervus-arbor:8090
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8016/
+      timeout: 10s
+    networks:
+      nervus-net: null
+    ports:
+    - 8016:8016
+    restart: unless-stopped
   whisper:
     build:
       context: ./core/whisper

@@ -24,7 +24,12 @@ def _chat(messages: list, system: str = "", max_tokens: int = 512) -> str:
     if system:
         msgs.append({"role": "system", "content": system})
     msgs.extend(messages)
-    with httpx.Client(timeout=30) as client:
+    # Inject /no_think on last user message to suppress thinking mode
+    for i in range(len(msgs) - 1, -1, -1):
+        if msgs[i].get("role") == "user":
+            msgs[i] = {**msgs[i], "content": f"/no_think {msgs[i]['content']}"}
+            break
+    with httpx.Client(timeout=300) as client:
         resp = client.post(
             f"{_ARBOR_URL}/models/chat",
             json={"model": "qwen3.5", "messages": msgs, "max_tokens": max_tokens},
@@ -34,14 +39,23 @@ def _chat(messages: list, system: str = "", max_tokens: int = 512) -> str:
 
 
 def _vision_chat(messages: list, max_tokens: int = 512) -> str:
-    with httpx.Client(timeout=60) as client:
+    # Inject /no_think on the text part of the last user message
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].get("role") == "user":
+            content = messages[i]["content"]
+            if isinstance(content, list):
+                for j, part in enumerate(content):
+                    if isinstance(part, dict) and part.get("type") == "text":
+                        content[j] = {**part, "text": f"/no_think {part['text']}"}
+                        break
+            break
+    with httpx.Client(timeout=300) as client:
         resp = client.post(
             f"{_LLAMA_URL}/v1/chat/completions",
             json={
-                "model": "qwen3.5",
+                "model": "qwen",
                 "messages": messages,
                 "max_tokens": max_tokens,
-                "chat_template_kwargs": {"enable_thinking": False},
             },
         )
         resp.raise_for_status()
