@@ -13,34 +13,45 @@
 
 - **主页** — AI 摘要卡片 + 快捷入口
 - **感知面板**（上划）— 健康 / 系统状态
-- **Chat**（左划）— 接本地 LLM 对话
+- **Chat**（左划）— 接本地 LLM 对话（走 Model Platform 代理）
 - **Files**（右划）— 文件传输助手
-- **应用中心**（下划）— 可自定义的 App 网格，支持添加 / 删除
+- **应用中心**（下划）— 从 `/api/apps` 动态读取已注册 App
 
 ---
 
-## 当前版本：v1.2
+## 当前版本：v0.1 Platform
 
 | 功能 | 状态 |
 |------|------|
 | 五方向空间导航 SPA | ✅ |
 | iOS Capacitor 壳子 | ✅ |
 | Files 文件传输面板 | ✅ |
-| 应用中心（动态，localStorage） | ✅ |
 | 深色 / 浅色自动跟随系统 | ✅ |
-| 全屏 + 灵动岛安全区适配 | ✅ |
-| 各 App 后端联通 | 🔧 进行中 |
+| 全屏 + 安全区适配 | ✅ |
+| **Arbor Core Platform（基座）** | ✅ |
+| App Platform（注册/发现/心跳） | ✅ |
+| Model Platform（Chat 网关） | ✅ |
+| Event Platform（事件持久化/查询） | ✅ |
+| Knowledge Platform（写入/检索） | ✅ |
+| 三级路由引擎（Fast/Semantic/Dynamic） | ✅ |
+| Flow 配置驱动的跨 App 自动化 | ✅ |
+| Embedding Pipeline（异步向量化） | ✅ |
+| App 心跳 / 离线检测 | ✅ |
+| Chat 面板接 LLM | ✅ |
+| 应用中心动态读取 /api/apps | ✅ |
+| 各 App 前端面板联通 | 🔧 进行中 |
 
 ---
 
 ## 目录
 
 1. [硬件要求](#1-硬件要求)
-2. [服务端部署（Linux 主机）](#2-服务端部署linux-主机)
-3. [网络穿透（外网访问）](#3-网络穿透外网访问)
+2. [服务端部署](#2-服务端部署linux-主机)
+3. [网络穿透](#3-网络穿透外网访问)
 4. [iOS 壳子安装](#4-ios-壳子安装)
 5. [日常更新前端](#5-日常更新前端)
-6. [项目结构](#6-项目结构)
+6. [平台 API 速查](#6-平台-api-速查)
+7. [项目结构](#7-项目结构)
 
 ---
 
@@ -61,9 +72,8 @@
 ### 前置条件
 
 ```bash
-# 安装 Docker + Docker Compose
 curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER   # 免 sudo 运行 docker（需重新登录）
+sudo usermod -aG docker $USER
 ```
 
 ### 拉取代码并启动
@@ -80,7 +90,8 @@ docker compose up -d
 |------|------|------|
 | Caddy（HTTPS） | 443 | 主入口，自签名证书 |
 | Caddy（HTTP） | 8900 | 局域网备用 |
-| Files 后端 | 8015 | 文件传输助手 |
+| Arbor Core | 8090 | 平台基座（内部） |
+| llama.cpp | 8080 | 本地 LLM（内部） |
 
 访问 `https://<主机IP>` 即可在局域网内打开 Nervus 前端。
 
@@ -88,35 +99,19 @@ docker compose up -d
 
 ## 3. 网络穿透（外网访问）
 
-如果需要在外网用手机访问（不在同一局域网），需要配置穿透隧道，否则跳过此节。
+推荐工具：**frp**（免费，自建）或 **cpolar / ngrok**（托管）。
 
-推荐工具：**frp**（免费，自建）或 **cpolar / ngrok**（托管，有免费套餐）。
-
-以 frp 为例，在有公网 IP 的服务器上运行 frps，在 Jetson 上运行 frpc，将本地 443 端口映射到公网某端口即可。
-
-配置完成后将公网地址填入 `ios/capacitor.config.json` 的 `server.url`（见下节）。
+在有公网 IP 的服务器上运行 frps，在主机上运行 frpc，将本地 443 端口映射到公网某端口。配置完成后将公网地址填入 `ios/capacitor.config.json` 的 `server.url`。
 
 ---
 
 ## 4. iOS 壳子安装
 
-### 前置条件
-
-- Mac 电脑，已安装 **Xcode 15+**
-- **Apple ID**（免费即可，无需付费开发者账号）
-- 手机通过数据线连接 Mac
-
-### 步骤
-
 **① 修改服务器地址**
 
-打开 `ios/capacitor.config.json`，将 `server.url` 改为你自己的 Nervus 地址：
-
 ```json
+// ios/capacitor.config.json
 {
-  "appId": "com.yourname.nervus",
-  "appName": "Nervus",
-  "webDir": "www",
   "server": {
     "url": "https://<你的主机IP或域名>",
     "cleartext": true
@@ -124,103 +119,131 @@ docker compose up -d
 }
 ```
 
-**② 安装依赖**
+**② 安装依赖并同步**
 
 ```bash
-cd ios-shell
+cd ios
 npm install
 npx cap sync ios
+open ios/App/App.xcodeproj
 ```
 
 **③ 用 Xcode 编译安装**
 
-```bash
-open ios/App/App.xcodeproj
-```
+在 Xcode 里：Signing & Capabilities → 选 Apple ID → Bundle Identifier 改成你自己的 → ▶ Run
 
-在 Xcode 里：
-1. 左侧选中 `App` 项目
-2. `Signing & Capabilities` → Team 选你的 Apple ID
-3. Bundle Identifier 改成你自己的（如 `com.yourname.nervus`）
-4. 顶部设备选你的 iPhone → 点 ▶ Run
+**④ 信任证书**
 
-**④ 信任开发者证书**
+设置 → 通用 → VPN 与设备管理 → 找到你的 Apple ID → 信任
 
-首次安装后，在手机上：
-> **设置 → 通用 → VPN 与设备管理 → 找到你的 Apple ID → 信任**
-
-之后每次打开 App 即可正常使用。
-
-> **注意**：免费 Apple ID 签名的 App 有效期 7 天，到期后需重新用 Xcode Run 一次。付费开发者账号有效期 1 年。
+> 免费 Apple ID 签名有效期 7 天，到期后重新 Run 一次。
 
 ---
 
 ## 5. 日常更新前端
 
-前端是单文件 `frontend/index.html`，修改后直接 scp 到主机，**无需重启 Docker，无需重新编译 Xcode**。
+前端是单文件 `frontend/index.html`，修改后直接 scp，**无需重启 Docker**。
 
 ```bash
-# 局域网直连
 scp frontend/index.html <用户名>@<主机IP>:/home/<用户名>/nervus/frontend/index.html
-
-# 或通过 SSH 隧道
-scp -P <端口> frontend/index.html <用户名>@<公网IP>:/home/<用户名>/nervus/frontend/index.html
 ```
 
-上传后刷新手机 App（完全关闭再重开）即可看到最新版本。
+更新 Flow 配置同理，scp 后调用热更新接口：
+
+```bash
+curl -X POST http://<主机IP>:8900/api/flows/reload
+```
 
 ---
 
-## 6. 项目结构
+## 6. 平台 API 速查
+
+所有接口经 Caddy `/api/*` → Arbor Core（`:8090`）。
+
+| 接口 | 说明 |
+|------|------|
+| `GET /api/health` | 基础健康检查 |
+| `GET /api/status` | 全局状态（App 数、Flow 数、embedding 统计） |
+| `GET /api/apps` | 已注册 App 列表 |
+| `POST /api/apps/register` | App 注册（SDK 自动调用） |
+| `POST /api/apps/{id}/heartbeat` | 心跳上报（SDK 自动调用） |
+| `GET /api/models` | 模型列表 |
+| `GET /api/models/status` | 模型在线状态 |
+| `POST /api/models/chat` | Chat 统一网关 |
+| `GET /api/events/recent` | 最近事件（`?limit=50&subject=meeting`） |
+| `POST /api/platform/knowledge` | 写入知识库 |
+| `POST /api/platform/knowledge/search` | 搜索知识库 |
+| `GET /api/flows` | 已加载 Flow 列表 |
+| `POST /api/flows/reload` | 热更新 Flow 配置 |
+| `GET /api/logs` | Flow 执行日志 |
+| `GET /api/config/public` | 前端公共配置 |
+
+---
+
+## 7. 项目结构
 
 ```
 nervus/
-├── frontend/                   # 前端（单文件 SPA，直接 scp 更新，无需重新构建）
-│   └── index.html              # 五方向空间导航 UI，包含所有面板逻辑
+├── frontend/
+│   └── index.html              # 全屏 SPA，五方向导航，单文件
 │
-├── ios/                        # iOS 原生壳子（Capacitor，负责打包安装到手机）
-│   ├── capacitor.config.json   # ← 部署时改这里：填入 Nervus 主机地址
-│   ├── src/                    # Capacitor 开发占位页，不是主前端
-│   ├── www/                    # Capacitor fallback 静态页，不是主前端
-│   └── ios/App/App/
-│       ├── MainViewController.swift   # SSL 自签名证书绕过 + 深色/浅色状态栏
-│       ├── AppDelegate.swift          # 应用生命周期
-│       └── Info.plist                 # 权限声明（麦克风、相册等）
+├── ios/                        # iOS Capacitor 壳子
+│   ├── capacitor.config.json   # ← 部署时改这里：填服务器地址
+│   └── ios/App/                # Xcode 工程
 │
-├── apps/                       # 各功能后端，每个都是独立 Docker 服务
-│   ├── file-manager/           # 文件传输助手，已联通前端（端口 8015；frontend/ 为旧版独立前端，当前未接主构建）
-│   ├── meeting-notes/          # 会议纪要，录音转文字 + AI 摘要（端口 8002）
-│   ├── pdf-extractor/          # PDF 解析与内容提取（端口 8008）
-│   ├── video-transcriber/      # 视频转文字，调用 Whisper（端口 8009）
-│   ├── calorie-tracker/        # 饮食热量记录，图像识别食物（端口 8001）
-│   ├── photo-scanner/          # 相册扫描与 AI 分析（端口 8006）
-│   ├── reminder/               # 提醒事项管理（端口 8012）
-│   ├── personal-notes/         # 个人笔记，支持全文检索（端口 8007）
-│   ├── knowledge-base/         # 知识库，向量检索（端口 8003）
-│   ├── rss-reader/             # RSS 订阅聚合（端口 8010）
-│   ├── sense/                  # 感知数据收集，健康 + 系统状态（端口 8005）
-│   ├── status-sense/           # 系统状态历史，供感知面板展示（端口 8013）
-│   ├── workflow-viewer/        # 工作流可视化，展示 Arbor 执行记录（端口 8014）
-│   ├── life-memory/            # 生活记忆图谱，长期记忆存储（端口 8004）
-│   └── calendar/               # 日历与日程管理（端口 8011）
+├── apps/                       # 各功能 App，每个是独立 Docker 服务
+│   ├── file-manager/           # 文件传输（:8015，前端已联通）
+│   ├── meeting-notes/          # 会议纪要（:8002）
+│   ├── calorie-tracker/        # 热量管理（:8001）
+│   ├── photo-scanner/          # 相册扫描（:8006）
+│   ├── personal-notes/         # 个人笔记（:8007）
+│   ├── knowledge-base/         # 知识库（:8003）
+│   ├── pdf-extractor/          # PDF 提取（:8008）
+│   ├── video-transcriber/      # 视频转录（:8009）
+│   ├── rss-reader/             # RSS 订阅（:8010）
+│   ├── reminder/               # 提醒（:8012）
+│   ├── calendar/               # 日历（:8011）
+│   ├── life-memory/            # 生活记忆（:8004）
+│   ├── status-sense/           # 系统状态（:8013）
+│   ├── sense/                  # 感知数据（:8005）
+│   └── workflow-viewer/        # 工作流可视化（:8014）
 │
-├── core/                       # 基础设施，所有服务共用
-│   ├── arbor/                  # 事件路由核心，FastRouter/SemanticRouter/DynamicRouter（端口 8090）
-│   ├── caddy/                  # 反向代理，统一入口，自签名 HTTPS（端口 443/8900）
-│   ├── nats/                   # 消息队列，服务间事件总线（端口 4222）
-│   ├── postgres/               # PostgreSQL + pgvector，结构化数据 + 向量检索（端口 5432）
-│   ├── redis/                  # 缓存与上下文图谱（端口 6379）
-│   └── whisper/                # 本地语音识别，供会议纪要 / 视频转写调用（端口 8081）
+├── core/                       # 基础设施
+│   ├── arbor/                  # 平台基座（:8090）
+│   │   ├── main.py             # 启动入口，所有模块在此初始化
+│   │   ├── platform/           # Platform 层
+│   │   │   ├── apps/           # App 注册/发现/心跳
+│   │   │   ├── models/         # Chat 网关
+│   │   │   ├── events/         # 事件持久化/查询
+│   │   │   ├── knowledge/      # 知识写入/检索
+│   │   │   └── config/         # 公共配置
+│   │   ├── router/             # 三级路由引擎
+│   │   │   ├── fast_router.py  # Flow 模式匹配，< 100ms
+│   │   │   ├── semantic_router.py  # LLM 语义推理，< 2s
+│   │   │   └── dynamic_router.py  # 多事件关联规划，< 5s
+│   │   ├── executor/           # Flow 执行器 + Embedding Pipeline
+│   │   └── infra/              # NATS / Redis / Postgres / Settings 客户端
+│   ├── caddy/                  # 反向代理，统一入口（:443/:8900）
+│   ├── nats/                   # 消息总线（:4222）
+│   ├── postgres/               # PostgreSQL + pgvector（:5432）
+│   ├── redis/                  # 上下文缓存（:6379）
+│   └── whisper/                # 本地语音识别（:8081）
 │
-├── sdk/                        # 开发套件，新 App 接入 Nervus 生态时使用
-│   ├── python/                 # Python SDK，14 个现有 App 均基于此构建
-│   └── typescript/             # TypeScript SDK，供前端或 Node.js App 使用
+├── sdk/
+│   └── python/                 # Nervus Python SDK，所有 App 基于此构建
+│
+├── config/
+│   ├── public.json             # 前端公共配置（外部演示链接等）
+│   └── flows/                  # Flow 配置文件（热更新，无需重启）
+│       ├── media-flows.json    # 相片→热量/生活记忆
+│       ├── meeting-flows.json  # 录音→纪要→知识库
+│       └── health-flows.json   # 热量→上下文/提醒→弹窗
 │
 ├── docker-compose.yml          # 一键启动全部服务
-└── docs/                       # 项目文档
-    ├── porting-guide.md        # 新 App 接入手册（NSI 接口规范）
-    ├── platform-v0.1-plan.md   # 平台底座 v0.1 规划
-    ├── audit-v1.2.md           # v1.2 代码审查报告，记录已知问题与优先级
+└── docs/
+    ├── porting-guide.md        # 新 App 接入手册
+    ├── platform-v0.1-plan.md   # 平台 v0.1 规划（已完成）
+    ├── audit-v1.2.md           # v1.2 代码审查报告
     └── Nervus_完整开发文档.md  # 完整架构设计文档
 ```
 
@@ -233,5 +256,5 @@ nervus/
 | 系统底层 | ~1.5 GB |
 | LLM（Qwen 4B INT4） | ~2.8 GB |
 | Redis + PostgreSQL + NATS | ~550 MB |
-| Caddy + 各 App 服务 | ~1.5 GB |
+| Caddy + Arbor + 各 App 服务 | ~1.5 GB |
 | **合计** | **~6.4 GB** |

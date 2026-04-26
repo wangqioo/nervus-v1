@@ -199,60 +199,48 @@ Nervus 已经工作了一整夜。
 ## 2.2 分层架构
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      PERCEPTION LAYER  感知层                     │
-│                                                                  │
-│   相册扫描    麦克风监听    日历感知    RSS订阅    剪贴板    传感器  │
-│   (定时轮询)  (会议录音触发) (事件订阅)  (定时拉取) (内容感知) (健康) │
-│                                                                  │
-│   ← 只做一件事：把现实世界的信号转化为系统内的标准化事件 →           │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │ 标准化事件流
-┌──────────────────────────▼───────────────────────────────────────┐
-│                    SYNAPSE BUS  突触总线                           │
-│                                                                  │
-│                    NATS + JetStream                               │
-│                                                                  │
-│   media.*    memory.*    meeting.*    context.*    system.*       │
-│   health.*   knowledge.* user.*       app.*        schedule.*     │
-│                                                                  │
-│   ← 所有事件的唯一通道。解耦所有生产者和消费者 →                    │
-└───────┬──────────────────┬────────────────────┬──────────────────┘
-        │                  │                    │
-┌───────▼────────┐  ┌──────▼──────────┐  ┌─────▼────────────────┐
-│  ARBOR CORE    │  │  CONTEXT GRAPH  │  │  MEMORY GRAPH        │
-│                │  │                 │  │                      │
-│  本地AI神经中枢  │  │  用户当下状态    │  │  长期记忆图谱          │
-│  llama.cpp     │  │  Redis（实时）   │  │  PostgreSQL          │
-│  4B 常驻       │  │                 │  │  + pgvector          │
-│                │  │  cognitive.*    │  │                      │
-│  理解层         │  │  physical.*     │  │  人生事件              │
-│  决策层         │  │  temporal.*     │  │  知识条目              │
-│  执行层（Flow） │  │  social.*       │  │  关系图谱              │
-│                │  │  travel.*       │  │  向量检索              │
-└───────┬────────┘  └─────────────────┘  └──────────────────────┘
-        │ 需要深度推理时（约1%场景）
-┌───────▼──────────────────────────────────────────────────────────┐
-│              CLOUD LLM  云端大模型（急性思维，按需调用）              │
-└──────────────────────────────────────────────────────────────────┘
-        │
-┌───────▼──────────────────────────────────────────────────────────┐
-│                         APP LAYER  应用层                         │
-│                                                                  │
-│  [人生记忆库] [知识大脑] [会议纪要] [热量管理] [状态感知] [日历] ...  │
-│                                                                  │
-│  每个 App 实现 Nervus Standard Interface（NSI）                    │
-│  manifest.json / /intake / /emit / /query / /action / /state    │
-└──────────────────────────────────────────────────────────────────┘
-        │
-┌───────▼──────────────────────────────────────────────────────────┐
-│              MOBILE SHELL  移动端                                 │
-│                                                                  │
-│   Capacitor.js（iOS 优先）                                        │
-│   5面板世界导航 + 所有 App 的 WebView 容器                          │
-│   相册/麦克风/后台任务/推送通知  原生插件桥接                         │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     PERCEPTION LAYER  感知层                     │
+│  相册扫描  麦克风监听  日历感知  RSS订阅  剪贴板  传感器            │
+│  ← 把现实世界信号转化为系统内标准化事件 →                          │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ 标准化事件流
+┌────────────────────────▼────────────────────────────────────────┐
+│                   SYNAPSE BUS  突触总线  (NATS)                  │
+│  media.*  meeting.*  health.*  context.*  knowledge.*  schedule.* │
+└──────┬───────────────────┬──────────────────────┬───────────────┘
+       │                   │                      │
+┌──────▼──────────────────────────────────────────────────────────┐
+│                  ARBOR CORE  平台基座  (:8090)                   │
+│                                                                 │
+│  Platform API（HTTP）              路由引擎（消费 NATS）          │
+│  ├─ App Platform  注册/发现/心跳    ├─ FastRouter  Flow匹配<100ms │
+│  ├─ Model Platform  Chat 网关      ├─ SemanticRouter LLM推理<2s  │
+│  ├─ Event Platform  事件持久化      └─ DynamicRouter 关联规划<5s  │
+│  ├─ Knowledge Platform  知识读写                                 │
+│  └─ Config Platform  公共配置       后台任务                      │
+│                                    ├─ EmbeddingPipeline 异步向量化│
+│                                    └─ HeartbeatWatcher 离线检测  │
+└──────┬────────────────┬─────────────────────────┬───────────────┘
+       │                │                         │
+┌──────▼──────┐  ┌──────▼──────────┐  ┌──────────▼─────────────┐
+│ CONTEXT     │  │  MEMORY GRAPH   │  │  llama.cpp Qwen3.5 4B  │
+│ GRAPH Redis │  │  PostgreSQL     │  │  (:8080)               │
+│ cognitive.* │  │  + pgvector     │  │  Chat / 语义路由 / 规划  │
+│ physical.*  │  │  life_events    │  └────────────────────────┘
+│ temporal.*  │  │  knowledge_items│
+└─────────────┘  └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        APP LAYER  应用层                         │
+│  [人生记忆库] [知识大脑] [会议纪要] [热量管理] [状态感知] ...        │
+│  每个 App 实现 NSI，manifest.json schema_version: "0.1" 声明能力  │
+└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│             MOBILE SHELL  (frontend/index.html + iOS 壳子)       │
+│  5面板空间导航 · Chat 走 Model Platform · Apps 从 /api/apps 读取  │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
 
 ## 2.3 数据流原则
 
@@ -793,48 +781,49 @@ GET  /state           暴露当前状态快照
 
 ```json
 {
+  "schema_version": "0.1",
   "id": "calorie-tracker",
   "name": "热量管理",
-  "version": "1.0.0",
+  "type": "nervus",
+  "version": "0.1.0",
   "description": "AI 自动记录饮食，跟踪热量目标",
-
-  "subscribes": [
-    {
-      "subject": "media.photo.classified",
-      "filter": { "tags_contains": ["food"] },
-      "handler": "/intake/photo_classified"
-    }
-  ],
-
-  "publishes": [
-    "health.calorie.meal_logged",
-    "health.calorie.budget_alert"
-  ],
-
-  "actions": [
-    {
-      "name": "analyze_meal",
-      "description": "分析食物照片并返回热量信息",
-      "input": { "photo_path": "string" },
-      "output": { "calories": "number", "food_name": "string" }
-    }
-  ],
-
-  "context_reads": [
-    "physical.daily_calorie_budget",
-    "physical.calorie_remaining"
-  ],
-
-  "context_writes": [
-    "physical.last_meal",
-    "physical.calorie_remaining"
-  ],
-
-  "memory_writes": [
-    "health.meal_history"
-  ]
+  "icon": "🍎",
+  "route": "/api/calorie-tracker",
+  "service": {
+    "container": "nervus-app-calorie",
+    "internal_url": "",
+    "port": 8001
+  },
+  "capabilities": {
+    "actions": [
+      {
+        "name": "analyze_meal",
+        "description": "分析食物照片并返回热量信息",
+        "input": { "photo_path": "string" },
+        "output": { "calories": "number", "food_name": "string" }
+      }
+    ],
+    "consumes": ["media.photo.classified"],
+    "emits": ["health.calorie.meal_logged", "health.calorie.budget_alert"],
+    "models": ["vision"],
+    "writes": ["knowledge", "memory"]
+  }
 }
 ```
+
+**字段说明：**
+
+| 字段 | 说明 |
+|------|------|
+| `schema_version` | 固定填 `"0.1"` |
+| `id` | 全局唯一，与目录名、docker service 名一致 |
+| `type` | 固定填 `"nervus"` |
+| `service.container` | docker container_name |
+| `service.port` | App 端口（与 APP_PORT 一致）|
+| `capabilities.actions` | 可被 Flow / 其他 App 调用的 action |
+| `capabilities.consumes` | 订阅的 NATS 主题列表 |
+| `capabilities.emits` | 发布的 NATS 主题列表 |
+| `capabilities.writes` | 写入的数据类型（`knowledge` / `memory` 等）|
 
 ## 6.3 Synapse Bus 事件表
 
@@ -1021,22 +1010,22 @@ app.run({ port: 8001 })
 
 # 第七部分：开发计划
 
-## Sprint 0 — 基础设施（第 1 周）
+## Sprint 0 — 基础设施（第 1 周）✅
 
 **目标：** 所有基础服务在 Jetson 上跑起来，能互相通信。
 
 ```
-□ Docker Compose 骨架（所有服务定义，统一网络）
-□ NATS + JetStream 部署和配置
-□ Redis 部署（Context Graph 初始 schema）
-□ PostgreSQL + pgvector 部署（Memory Graph schema 建表）
-□ llama.cpp server 编译安装（针对 JetPack/CUDA 优化）
-□ qwen2.5:4B-Q4_K_M 模型下载和加载测试
-□ faster-whisper 服务部署
-□ minicpm-v 模型准备（暂不常驻）
-□ Caddy 配置反向代理（局域网 HTTPS）
-□ 内存基准测试（确认 8GB 边界安全）
-□ docker-compose.yml 完整版本提交
+✅ Docker Compose 骨架（所有服务定义，统一网络）
+✅ NATS + JetStream 部署和配置
+✅ Redis 部署（Context Graph 初始 schema）
+✅ PostgreSQL + pgvector 部署（Memory Graph schema 建表）
+✅ llama.cpp server 编译安装（针对 JetPack/CUDA 优化）
+✅ qwen2.5:4B-Q4_K_M 模型下载和加载测试
+✅ faster-whisper 服务部署
+✅ minicpm-v 模型准备（暂不常驻）
+✅ Caddy 配置反向代理（局域网 HTTPS）
+✅ 内存基准测试（确认 8GB 边界安全）
+✅ docker-compose.yml 完整版本提交
 
 验收：
   curl llama.cpp → 返回 AI 回复
@@ -1046,13 +1035,13 @@ app.run({ port: 8001 })
   内存峰值 < 6GB（常驻状态）
 ```
 
-## Sprint 1 — nervus-sdk（第 2 周）
+## Sprint 1 — nervus-sdk（第 2 周）✅
 
 **目标：** 开发者能用 SDK 5 行代码接入生态。
 
 ```
-□ manifest.json 完整 schema（含校验）
-□ Python SDK：
+✅ manifest.json 完整 schema（含校验）
+✅ Python SDK：
     NervusApp 类
     Context 读写（Redis 封装）
     emit() 发布事件（NATS 封装）
@@ -1062,32 +1051,32 @@ app.run({ port: 8001 })
     app.llm.chat() 文字理解调用（Qwen3.5-4B 多模态）
     app.llm.vision() 视觉理解调用（同一模型，传入图片+提示词）
     app.whisper faster-whisper 语音转写封装
-□ TypeScript SDK（同等功能）
-□ NSI 标准接口自动挂载（manifest/intake/emit/query/action/state）
-□ SDK Demo App（最小可运行示例）
-□ App 注册机制（启动时向 system.app.registered 发布）
+✅ TypeScript SDK（同等功能）
+✅ NSI 标准接口自动挂载（manifest/intake/emit/query/action/state）
+✅ SDK Demo App（最小可运行示例）
+✅ App 注册机制（启动时向 system.app.registered 发布）
 
 验收：
   Demo App 启动 → 订阅事件 → 收到事件 → 写入 Context → 发布事件
   全链路延迟 < 200ms（不含 AI 调用）
 ```
 
-## Sprint 2 — Arbor Core（第 3–4 周）
+## Sprint 2 — Arbor Core（第 3–4 周）✅
 
 **目标：** 神经中枢能理解事件并做出路由决策。
 
 ```
-□ FastAPI 服务骨架
-□ NATS 全局通配符订阅（#，接收所有事件）
-□ App 注册表（从 manifest.json 构建能力索引）
-□ 流程配置加载器（JSON 配置文件热加载）
-□ 快速路由引擎（规则匹配，< 100ms）
-□ 语义路由引擎（llama.cpp 推理，< 2s）
-□ 动态规划引擎（多事件关联，< 5s）
-□ Flow 执行引擎（顺序/并行步骤执行，HTTP 调用 App /action）
-□ Context Graph 集成（读写封装）
-□ 执行日志记录（可查询的任务历史）
-□ Nervus 全局弹窗触发接口（POST /notify/global_popup）
+✅ FastAPI 服务骨架
+✅ NATS 全局通配符订阅（#，接收所有事件）
+✅ App 注册表（从 manifest.json 构建能力索引）
+✅ 流程配置加载器（JSON 配置文件热加载）
+✅ 快速路由引擎（规则匹配，< 100ms）
+✅ 语义路由引擎（llama.cpp 推理，< 2s）
+✅ 动态规划引擎（多事件关联，< 5s）
+✅ Flow 执行引擎（顺序/并行步骤执行，HTTP 调用 App /action）
+✅ Context Graph 集成（读写封装）
+✅ 执行日志记录（可查询的任务历史）
+✅ Nervus 全局弹窗触发接口（POST /notify/global_popup）
 
 验收：
   发布 media.photo.classified（food） → Arbor 快速路由到热量 App
@@ -1095,24 +1084,24 @@ app.run({ port: 8001 })
   多事件时间窗口重叠 → Arbor 动态规划并执行
 ```
 
-## Sprint 3 — 第一条完整数据流（第 5 周）
+## Sprint 3 — 第一条完整数据流（第 5 周）✅
 
 **目标：** 从手机拍照到热量 App 自动记录，全程零操作，端到端打通。
 
 ```
-□ 相册扫描器服务（Python）：
+✅ 相册扫描器服务（Python）：
     定时轮询新照片（通过 Capacitor 相册插件）
     调用 minicpm-v 视觉模型分类
     发布 media.photo.classified
-□ 热量管理 App NSI 改造：
+✅ 热量管理 App NSI 改造：
     添加 manifest.json
     实现 /intake/photo_classified
     实现 /action/analyze_meal（调用视觉模型）
     写入 Context Graph physical.*
     前端自动刷新（WebSocket 或轮询）
-□ Nervus 全局弹窗实现（前端 + Arbor 触发）
-□ iOS Capacitor 初步配置（相册访问权限）
-□ 局域网通信封装（Capacitor → 边缘设备）
+✅ Nervus 全局弹窗实现（前端 + Arbor 触发）
+✅ iOS Capacitor 初步配置（相册访问权限）
+✅ 局域网通信封装（Capacitor → 边缘设备）
 
 验收：
   手机拍食物照片 → 热量 App 出现自动记录 → Context Graph 更新
@@ -1121,21 +1110,21 @@ app.run({ port: 8001 })
   端到端延迟 < 10s
 ```
 
-## Sprint 4 — Memory Graph + Sense 页数据化（第 6 周）
+## Sprint 4 — Memory Graph + Sense 页数据化（第 6 周）✅
 
 **目标：** 系统有了真正的长期记忆，Sense 页展示真实数据。
 
 ```
-□ Memory Graph 写入 API（life_events / knowledge_items）
-□ pgvector 向量化 Pipeline（事件发生时自动 embedding）
-□ 语义召回 API（「我上次去上海是什么时候」→ 检索 Memory Graph）
-□ Context Graph 完整字段实现（对应第六部分 6.4）
-□ 状态感知 App NSI 改造：
+✅ Memory Graph 写入 API（life_events / knowledge_items）
+✅ pgvector 向量化 Pipeline（事件发生时自动 embedding）
+✅ 语义召回 API（「我上次去上海是什么时候」→ 检索 Memory Graph）
+✅ Context Graph 完整字段实现（对应第六部分 6.4）
+✅ 状态感知 App NSI 改造：
     多信号聚合推断 cognitive.load
     写入 Context Graph
     发布 context.user_state.updated
-□ Sense 页前端数据化（从 Context Graph 实时读取）
-□ 记忆沉淀任务（定时把 Context hot data 写入 Memory Graph）
+✅ Sense 页前端数据化（从 Context Graph 实时读取）
+✅ 记忆沉淀任务（定时把 Context hot data 写入 Memory Graph）
 
 验收：
   Sense 页展示的数据是真实 Context Graph 状态
@@ -1228,34 +1217,60 @@ app.run({ port: 8001 })
 
 ```
 nervus/
-├── docker-compose.yml          # 整体服务编排
-├── caddy/
-│   └── Caddyfile
-├── arbor-core/                 # Arbor Core 服务
-│   ├── main.py
-│   ├── router/                 # 快速/语义/动态路由
-│   ├── executor/               # Flow 执行引擎
-│   ├── flows/                  # JSON 流程配置
-│   └── requirements.txt
-├── nervus-sdk/                 # Python SDK
-│   ├── nervus_sdk/
-│   └── setup.py
-├── nervus-sdk-ts/              # TypeScript SDK
-│   ├── src/
-│   └── package.json
-├── apps/                       # 所有 App
-│   ├── calorie-tracker/
-│   ├── meeting-notes/
-│   ├── knowledge-base/
-│   ├── life-memory/
-│   ├── sense/
-│   └── ...（共 20 个）
-├── mobile/                     # Capacitor iOS Shell
-│   ├── src/                    # app-prototype.html 拆分版本
-│   ├── ios/
-│   └── capacitor.config.ts
-└── docs/                       # 本文档
-    └── Nervus_完整开发文档.md
+├── docker-compose.yml          # 一键启动全部服务
+├── frontend/
+│   └── index.html              # 全屏 SPA，五方向导航，单文件
+├── ios/                        # iOS Capacitor 壳子
+│   ├── capacitor.config.json
+│   └── ios/App/
+├── apps/                       # 各功能 App，每个是独立 Docker 服务
+│   ├── calorie-tracker/        # :8001
+│   ├── meeting-notes/          # :8002
+│   ├── knowledge-base/         # :8003
+│   ├── life-memory/            # :8004
+│   ├── sense/                  # :8005
+│   ├── photo-scanner/          # :8006
+│   ├── personal-notes/         # :8007
+│   ├── pdf-extractor/          # :8008
+│   ├── video-transcriber/      # :8009
+│   ├── rss-reader/             # :8010
+│   ├── calendar/               # :8011
+│   ├── reminder/               # :8012
+│   ├── status-sense/           # :8013
+│   ├── workflow-viewer/        # :8014
+│   └── file-manager/           # :8015
+├── core/                       # 基础设施
+│   ├── arbor/                  # 平台基座（:8090）
+│   │   ├── main.py
+│   │   ├── platform/
+│   │   │   ├── apps/           # App 注册/发现/心跳
+│   │   │   ├── models/         # Chat 网关
+│   │   │   ├── events/         # 事件持久化/查询
+│   │   │   ├── knowledge/      # 知识写入/检索
+│   │   │   └── config/         # 公共配置
+│   │   ├── router/             # 三级路由引擎
+│   │   │   ├── fast_router.py
+│   │   │   ├── semantic_router.py
+│   │   │   └── dynamic_router.py
+│   │   ├── executor/           # Flow 执行器 + Embedding Pipeline
+│   │   ├── api/                # notify / status 接口
+│   │   └── infra/              # NATS / Redis / Postgres 客户端
+│   ├── caddy/                  # 反向代理（:443 / :8900）
+│   ├── nats/                   # 消息总线（:4222）
+│   ├── postgres/               # PostgreSQL + pgvector（:5432）
+│   ├── redis/                  # 上下文缓存（:6379）
+│   └── whisper/                # 本地语音识别（:8081）
+├── sdk/
+│   └── python/                 # Nervus Python SDK
+├── config/
+│   ├── public.json
+│   └── flows/                  # Flow 配置（热更新）
+│       ├── media-flows.json
+│       ├── meeting-flows.json
+│       └── health-flows.json
+└── docs/
+    ├── porting-guide.md        # 新 App 接入手册
+    └── Nervus_完整开发文档.md  # 本文档
 ```
 
 ## 8.2 App 开发模板

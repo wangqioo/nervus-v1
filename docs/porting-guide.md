@@ -1,102 +1,133 @@
-# Nervus App 移植手册
+# Nervus App 接入手册
 
-> 拿到这份文档即可独立完成移植，无需参考其他资料。
+> 拿到这份文档即可独立完成接入，无需参考其他资料。
 
 ---
 
-## 1. 系统架构速览
+## 1. 架构一眼看懂
 
 ```
 iPhone/Browser
     │
     ▼ HTTP
-Caddy (:443 nervus.local / :8900 HTTP)
+Caddy (:443 / :8900)
     │
-    ├─ /api/{app-id}/*  ──►  nervus-app-{id}:{port}   (各 App，FastAPI)
-    ├─ /api/llm/*        ──►  nervus-llama:8080          (Qwen3.5 LLM)
-    └─ /api/*            ──►  nervus-arbor:8090           (路由总线)
+    ├─ /api/{app-id}/*  ──►  nervus-app-{id}:{port}   （你的 App）
+    ├─ /api/models/chat  ──►  nervus-arbor:8090         （LLM 网关）
+    └─ /api/*            ──►  nervus-arbor:8090         （平台基座）
                                       │
                          ┌────────────┼────────────┐
                          ▼            ▼             ▼
                     nervus-nats   nervus-redis  nervus-postgres
-                  (事件总线)     (上下文缓存)    (持久化/向量)
 ```
 
-- **每个 App** 是一个独立的 Docker 容器，运行 FastAPI 服务
-- **nervus-sdk** 封装了 LLM / NATS / Redis / Postgres 所有基础设施调用
-- **Caddy** 负责将 `/api/{app-id}/*` 路由到对应容器，前端直接 `fetch('/api/...')`
-- **Arbor** 是中枢路由和 App 注册中心，App 启动时自动注册
+**每个 App 是独立的 Docker 容器，通过 Nervus SDK 接入生态：**
+- 启动时向 Arbor 注册（自动）
+- 每 60s 上报心跳（自动）
+- 通过 NATS 收发事件
+- 向平台 API 写入知识/读取数据
 
 ---
 
-## 2. 已用端口一览（新 App 从 8015 往后顺序分配）
+## 2. 已用端口
 
-| 端口 | 容器名 | App ID |
-|------|--------|--------|
-| 8001 | nervus-app-calorie | calorie-tracker |
-| 8002 | nervus-app-meeting | meeting-notes |
-| 8003 | nervus-app-knowledge | knowledge-base |
-| 8004 | nervus-app-life | life-memory |
-| 8005 | nervus-app-sense | sense |
-| 8006 | nervus-app-photo | photo-scanner |
-| 8007 | nervus-app-notes | personal-notes |
-| 8008 | nervus-app-pdf | pdf-extractor |
-| 8009 | nervus-app-video | video-transcriber |
-| 8010 | nervus-app-rss | rss-reader |
-| 8011 | nervus-app-calendar | calendar |
-| 8012 | nervus-app-reminder | reminder |
-| 8013 | nervus-app-status-sense | status-sense |
-| 8014 | nervus-app-workflow | workflow-viewer |
-| **8015+** | **新 App 从这里开始** | — |
+新 App 从 **8016** 往后顺序分配。
 
----
-
-## 3. 移植四步流程
-
-### 步骤 1 — 创建 App 目录
-
-```
-apps/
-└── {app-id}/          ← 用小写中划线，如 habit-tracker
-    ├── main.py        ← 核心逻辑（唯一必须文件）
-    ├── requirements.txt
-    └── Dockerfile
-```
-
-### 步骤 2 — 编写 main.py（模板见第 4 节）
-
-### 步骤 3 — 在 docker-compose.yml 添加服务（模板见第 5 节）
-
-### 步骤 4 — 在 caddy/Caddyfile 添加路由（模板见第 6 节）
-
-完成后执行部署命令（见第 8 节）。
+| 端口 | App ID |
+|------|--------|
+| 8001 | calorie-tracker |
+| 8002 | meeting-notes |
+| 8003 | knowledge-base |
+| 8004 | life-memory |
+| 8005 | sense |
+| 8006 | photo-scanner |
+| 8007 | personal-notes |
+| 8008 | pdf-extractor |
+| 8009 | video-transcriber |
+| 8010 | rss-reader |
+| 8011 | calendar |
+| 8012 | reminder |
+| 8013 | status-sense |
+| 8014 | workflow-viewer |
+| 8015 | file-manager |
 
 ---
 
-## 4. main.py 完整模板
+## 3. 接入四步
+
+1. 创建 `apps/{app-id}/` 目录（`main.py` + `manifest.json` + `Dockerfile` + `requirements.txt`）
+2. 在 `docker-compose.yml` 添加服务块
+3. 在 `core/caddy/Caddyfile` 两处添加路由
+4. 构建并部署
+
+---
+
+## 4. manifest.json（必须）
+
+放在 `apps/{app-id}/manifest.json`，SDK 启动时自动加载（Docker 挂载到 `/app/manifest.json`）。
+
+```json
+{
+  "schema_version": "0.1",
+  "id": "habit-tracker",
+  "name": "习惯追踪",
+  "type": "nervus",
+  "version": "0.1.0",
+  "description": "记录和追踪每日习惯",
+  "icon": "✅",
+  "route": "/api/habit-tracker",
+  "service": {
+    "container": "nervus-app-habit",
+    "internal_url": "",
+    "port": 8016
+  },
+  "capabilities": {
+    "actions": [
+      {
+        "name": "log_habit",
+        "description": "记录一次习惯完成",
+        "input": { "habit_id": "string", "date": "string" }
+      }
+    ],
+    "consumes": [],
+    "emits": ["schedule.habit.logged"],
+    "models": [],
+    "writes": []
+  }
+}
+```
+
+**字段说明：**
+
+| 字段 | 说明 |
+|------|------|
+| `schema_version` | 固定填 `"0.1"` |
+| `id` | 全局唯一，与目录名、docker service 名一致 |
+| `type` | 固定填 `"nervus"` |
+| `service.container` | docker container_name |
+| `service.port` | App 端口（与 APP_PORT 一致）|
+| `capabilities.consumes` | 订阅的 NATS 主题列表 |
+| `capabilities.emits` | 发布的 NATS 主题列表 |
+| `capabilities.actions` | 可被 Flow / 其他 App 调用的 action |
+| `capabilities.writes` | 写入的数据类型（`knowledge` / `memory` 等）|
+
+---
+
+## 5. main.py 模板
 
 ```python
 """
 {AppName} — {功能简述}
 """
-
 import os
-import json
 from datetime import datetime
-from typing import Optional
 
-# ── SDK 导入（固定写法，所有 App 相同）──
-import sys
-sys.path.insert(0, "/app/nervus-sdk")
-from nervus_sdk import NervusApp, emit
+from nervus_sdk import NervusApp
 from nervus_sdk.models import Event
 
-# ── 初始化（app_id 必须与目录名、docker-compose service 名一致）──
 nervus = NervusApp("{app-id}")
 
-# ════════════════════════════════════════
-# 数据库（SQLite，推荐用法）
-# ════════════════════════════════════════
+# ── 数据库（SQLite，简单场景够用）──────────────
 import sqlite3
 from pathlib import Path
 
@@ -114,92 +145,60 @@ def init_db():
             CREATE TABLE IF NOT EXISTS items (
                 id         TEXT PRIMARY KEY,
                 content    TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                created_at TEXT NOT NULL
             );
         """)
 
 init_db()
 
-# ════════════════════════════════════════
-# Actions（供 Arbor / 其他 App 调用）
-# ════════════════════════════════════════
-
-@nervus.action("create_item")
-async def action_create_item(payload: dict) -> dict:
+# ── Actions（供 Flow / 其他 App 调用）─────────
+@nervus.action("log_habit")
+async def action_log_habit(habit_id: str, date: str = "") -> dict:
     import uuid
     item_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO items (id, content, created_at, updated_at) VALUES (?,?,?,?)",
-            (item_id, payload.get("content", ""), now, now)
+            "INSERT INTO items (id, content, created_at) VALUES (?,?,?)",
+            (item_id, habit_id, now)
         )
-    # 可选：发布事件到总线
-    # await emit("myapp.item.created", {"item_id": item_id})
-    return {"item_id": item_id, "status": "created"}
+    await nervus.emit("schedule.habit.logged", {"habit_id": habit_id, "logged_at": now})
+    return {"item_id": item_id, "status": "logged"}
 
-# ════════════════════════════════════════
-# REST API（供前端直接调用）
-# ════════════════════════════════════════
-
-@nervus._api.get("/items")
-async def list_items(limit: int = 50):
+# ── REST API（供前端直接调用）─────────────────
+@nervus._api.get("/habits")
+async def list_habits(limit: int = 50):
     with get_db() as conn:
         rows = conn.execute(
             "SELECT * FROM items ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
-    return {"items": [dict(r) for r in rows]}
+    return {"habits": [dict(r) for r in rows]}
 
-@nervus._api.post("/items")
-async def create_item(body: dict):
-    return await action_create_item(body)
+@nervus._api.post("/habits")
+async def create_habit(body: dict):
+    return await action_log_habit(body.get("habit_id", ""), body.get("date", ""))
 
-@nervus._api.get("/items/{item_id}")
-async def get_item(item_id: str):
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
-    if not row:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Not found")
-    return dict(row)
+# ── 事件订阅（可选）─────────────────────────
+# @nervus.on("system.daily.morning")
+# async def on_morning(event: Event):
+#     # 每天早上触发
+#     pass
 
-@nervus._api.delete("/items/{item_id}")
-async def delete_item(item_id: str):
-    with get_db() as conn:
-        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
-    return {"item_id": item_id, "status": "deleted"}
-
-# ════════════════════════════════════════
-# 事件订阅（可选，监听总线事件）
-# ════════════════════════════════════════
-
-# @nervus.on("some.other.app.event")
-# async def handle_event(event: Event):
-#     data = event.payload
-#     ...
-
-# ════════════════════════════════════════
-# 状态快照（供 Sense / 前端展示）
-# ════════════════════════════════════════
-
+# ── 状态快照（供前端 / Sense 面板）──────────
 @nervus.state
 async def get_state():
     with get_db() as conn:
         total = conn.execute("SELECT COUNT(*) as c FROM items").fetchone()["c"]
-    return {"total_items": total}
+    return {"total_logged": total}
 
-# ════════════════════════════════════════
-# 启动
-# ════════════════════════════════════════
-
+# ── 启动 ──────────────────────────────────
 if __name__ == "__main__":
-    nervus.run(port=int(os.getenv("APP_PORT", "8015")))
+    nervus.run(port=int(os.getenv("APP_PORT", "8016")))
 ```
 
 ---
 
-## 5. Dockerfile 模板
+## 6. Dockerfile 模板
 
 ```dockerfile
 FROM nervus-python-base:latest
@@ -208,32 +207,18 @@ COPY nervus-sdk /app/nervus-sdk
 COPY apps/{app-id}/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple \
  && pip install --no-cache-dir /app/nervus-sdk -i https://pypi.tuna.tsinghua.edu.cn/simple
+COPY apps/{app-id}/manifest.json /app/manifest.json
 COPY apps/{app-id}/. .
 RUN mkdir -p /data
 EXPOSE {PORT}
 CMD ["python", "main.py"]
 ```
 
----
-
-## 6. requirements.txt 模板（最小集）
-
-```
-fastapi>=0.110.0
-uvicorn[standard]>=0.29.0
-nats-py>=2.6.0
-redis>=5.0.0
-httpx>=0.27.0
-pydantic>=2.0.0
-```
-
-如果需要额外依赖（如 `pandas`、`Pillow` 等），直接追加。
+> 关键：`manifest.json` 必须复制到 `/app/manifest.json`，SDK 会从这里自动加载。
 
 ---
 
-## 7. docker-compose.yml — 新增服务块
-
-在 `services:` 下添加（参考已有 app 格式，替换 `{...}` 占位符）：
+## 7. docker-compose.yml 服务块
 
 ```yaml
   app-{app-id}:
@@ -252,6 +237,7 @@ pydantic>=2.0.0
       - "{PORT}:{PORT}"
     environment:
       APP_PORT: "{PORT}"
+      APP_INTERNAL_URL: "http://nervus-app-{short-name}:{PORT}"
       NATS_URL: nats://nervus-nats:4222
       REDIS_URL: redis://nervus-redis:6379
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
@@ -265,13 +251,15 @@ pydantic>=2.0.0
       start_period: 30s
 ```
 
-**注意：** `container_name` 用作内部 DNS，Caddy 的 `reverse_proxy` 指向它。
+> `APP_INTERNAL_URL` 是 Arbor 回调你的 App 时用的地址，必须填对。
 
 ---
 
-## 8. caddy/Caddyfile — 新增路由
+## 8. Caddyfile 路由（两处都要加）
 
-Caddyfile 中有两个相同的块（一个是 `nervus.local` HTTPS，一个是 `:8900` HTTP），**两处都要加**，且必须放在 `handle /api/*` 这一行**之前**：
+文件位置：`core/caddy/Caddyfile`。
+
+有两个块（HTTPS `nervus.local` 和 HTTP `:8900`），**两处都要加**，且必须放在 `handle /api/*` 之前：
 
 ```caddyfile
     handle /api/{app-id}/* {
@@ -280,253 +268,156 @@ Caddyfile 中有两个相同的块（一个是 `nervus.local` HTTPS，一个是 
     }
 ```
 
-替换规则：
-- `{app-id}` = App 的 URL 路径段（与目录名相同，如 `habit-tracker`）
-- `{short-name}` = `container_name` 中 `nervus-app-` 后面的部分
-- `{PORT}` = 分配的端口号
-
 ---
 
-## 9. 部署命令（SSH 到设备后执行）
+## 9. 部署命令
 
 ```bash
 cd ~/nervus
 
-# 1. 构建新 App 镜像
+# 构建新镜像
 docker compose build app-{app-id}
 
-# 2. 启动新容器
+# 启动
 docker compose up -d app-{app-id}
 
-# 3. 重载 Caddy 路由（让新路由生效）
+# 重载 Caddy 路由
 docker restart nervus-caddy
 
-# 4. 验证
+# 验证
 curl -s http://localhost:8900/api/{app-id}/health
 # 期望: {"status":"ok","app_id":"{app-id}"}
 
-curl -s http://localhost:8900/api/{app-id}/{your-endpoint}
-# 验证具体接口
+# 确认已注册到 Arbor
+curl -s http://localhost:8900/api/apps | python3 -m json.tool | grep "{app-id}"
 ```
 
 ---
 
 ## 10. SDK 能力速查
 
-### 10.1 调用 LLM（文字对话）
+### 10.1 调用 LLM
+
+推荐走平台 Chat 网关（`/api/models/chat`），避免直连 llama.cpp：
 
 ```python
-# nervus.llm 已在 NervusApp 中自动初始化
+# 方式 A：通过 SDK（内部走 llama.cpp）
 text = await nervus.llm.chat(
-    prompt="用户输入的内容",
-    system="你是专业助手，简洁回答。",   # 可选，默认有
+    prompt="用户输入",
+    system="你是专业助手，简洁回答。",
     temperature=0.3,
     max_tokens=512,
 )
-# 返回: str
 
-# 返回 JSON 对象
-data = await nervus.llm.chat_json(
-    prompt="分析这段文本，返回 {score: int, tags: list}",
-)
-# 返回: dict
+# 方式 B：调用平台 Chat 网关（推荐，模型不可用时返回结构化错误）
+import httpx
+async with httpx.AsyncClient() as client:
+    resp = await client.post(
+        f"{os.getenv('ARBOR_URL')}/models/chat",
+        json={
+            "model": "qwen3.5",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 512,
+        }
+    )
+    content = resp.json()["content"]
 ```
 
-### 10.2 调用 LLM（视觉识别）
+### 10.2 视觉识别
 
 ```python
-result = await nervus.llm.vision(
-    image_path="/data/photo.jpg",   # 本地路径 或 http URL
-    prompt="识别图中食物并估算热量",
-    temperature=0.2,
-)
-# 返回: str
-
 data = await nervus.llm.vision_json(
     image_path="/data/photo.jpg",
     prompt="返回 {items: [{name, kcal}]}",
 )
-# 返回: dict
 ```
 
 ### 10.3 发布 / 订阅事件
 
 ```python
-from nervus_sdk import emit
+# 发布
+await nervus.emit("health.calorie.logged", {"kcal": 500})
 
-# 发布事件（在任意 async 函数中）
-await emit("health.calorie.logged", {"kcal": 500, "meal": "lunch"})
-
-# 订阅事件（在 App 顶层声明）
+# 订阅（在顶层声明）
 @nervus.on("media.photo.classified", filter={"tags_contains": ["food"]})
 async def on_food_photo(event: Event):
-    payload = event.payload   # dict
-    source  = event.source_app
-    ...
+    payload = event.payload
 ```
 
-**常用事件主题约定：**
+**常用事件主题：**
 
 | 主题 | 含义 |
 |------|------|
-| `media.photo.taken` | 新照片 |
 | `media.photo.classified` | 照片已分类 |
-| `health.calorie.logged` | 卡路里记录 |
-| `knowledge.note.created` | 笔记新建/更新 |
-| `knowledge.document.added` | 文档添加 |
+| `meeting.recording.processed` | 录音转写完成 |
+| `health.calorie.meal_logged` | 饮食记录写入 |
+| `knowledge.document.indexed` | 文档向量化完成 |
+| `schedule.reminder.triggered` | 提醒时间到达 |
 | `system.daily.morning` | 每日早间触发 |
 
-### 10.4 读写 Redis 上下文
+### 10.4 Context Graph（Redis）
 
 ```python
 from nervus_sdk import Context
 
-# 写（自动序列化 JSON）
 await Context.set("physical.calorie_remaining", 800)
-await Context.set("cognitive.load", "high")
-
-# 读
-val = await Context.get("physical.calorie_remaining")  # 返回原始值
-
-# 带过期时间（秒）
+val = await Context.get("physical.calorie_remaining")
 await Context.set("temp.processing", True, ttl=300)
 ```
 
-### 10.5 写入 Memory Graph（向量记忆，可选）
+### 10.5 写入平台知识库
 
 ```python
-from nervus_sdk import MemoryGraph
+import httpx
 
-await MemoryGraph.store(
-    subject="user",
-    predicate="ate",
-    obj="lunch at 12:30",
-    embedding_text="用户午饭吃了米饭和蔬菜",
-)
-
-results = await MemoryGraph.search("今天吃了什么", limit=5)
+async with httpx.AsyncClient() as client:
+    await client.post(
+        f"{os.getenv('ARBOR_URL')}/platform/knowledge",
+        json={
+            "type": "note",
+            "title": "今日会议要点",
+            "content": transcript,
+            "summary": summary,
+            "source_app": "meeting-notes",
+            "tags": ["meeting", "2026"],
+        }
+    )
 ```
 
 ---
 
-## 11. 前端调用规范
-
-前端 `fetch` 路径格式：`/api/{app-id}/{endpoint}`
-
-示例：
-```javascript
-// 获取列表
-const res = await fetch('/api/habit-tracker/habits');
-const { habits } = await res.json();
-
-// 创建
-await fetch('/api/habit-tracker/habits', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ name: '早起', frequency: 'daily' })
-});
-
-// 删除
-await fetch(`/api/habit-tracker/habits/${id}`, { method: 'DELETE' });
-```
-
----
-
-## 12. 完整移植 Checklist
+## 11. 接入 Checklist
 
 ```
-□ 1. apps/{app-id}/ 目录已创建
-□ 2. main.py 完成，app_id 与目录名一致
-□ 3. requirements.txt 列出所有依赖
-□ 4. Dockerfile 端口号与 APP_PORT 一致
-□ 5. docker-compose.yml 新服务已添加（ports / environment 正确）
-□ 6. caddy/Caddyfile 两处路由块均已添加（HTTPS + HTTP 8900）
-□ 7. docker compose build app-{app-id}  ← 构建成功（无报错）
-□ 8. docker compose up -d app-{app-id}  ← 容器已 Up
-□ 9. curl /health 返回 {"status":"ok"}
-□ 10. docker restart nervus-caddy  ← 路由重载
-□ 11. curl http://localhost:8900/api/{app-id}/health  ← 通过 Caddy 验证
+□ 1. apps/{app-id}/manifest.json 已创建（schema_version: "0.1"）
+□ 2. main.py 完成，NervusApp("{app-id}") 与 manifest.id 一致
+□ 3. Dockerfile 中 manifest.json 复制到 /app/manifest.json
+□ 4. docker-compose.yml 服务块已添加（含 APP_INTERNAL_URL）
+□ 5. Caddyfile 两处路由块均已添加
+□ 6. docker compose build app-{app-id}  ← 构建成功
+□ 7. docker compose up -d app-{app-id}  ← 容器已 Up
+□ 8. curl /health 返回 {"status":"ok"}
+□ 9. docker restart nervus-caddy
+□ 10. curl http://localhost:8900/api/{app-id}/health  ← 通过 Caddy 验证
+□ 11. curl http://localhost:8900/api/apps | grep "{app-id}"  ← 已注册到 Arbor
 □ 12. 主要接口手动测试通过
-□ 13. git add / commit / push（通过工具推送，设备无法直连 GitHub）
 ```
 
 ---
 
-## 13. 常见问题
+## 12. 常见问题
 
-**Q: App 启动后注册不到 Arbor？**
-Arbor 重启后内存清空，执行 `docker restart nervus-app-{short-name}` 即可重新注册。
+**Q: App 启动后没有出现在 /api/apps？**
+检查 `APP_INTERNAL_URL` 是否填对；检查 Arbor 是否健康（`curl /api/health`）；查看 App 日志 `docker logs nervus-app-{name}`。
 
 **Q: LLM 返回空字符串？**
-SDK 已内置 `chat_template_kwargs: {"enable_thinking": false}`，正常不会出现。如果自己手写 `httpx` 调用要记得加这个参数。
+SDK 内置 `chat_template_kwargs: {"enable_thinking": false}`。自己手写 httpx 调用时记得加这个参数。
 
 **Q: SQLite 并发写入报错？**
-在高并发场景改用 `check_same_thread=False`，或换用 Postgres（通过 `POSTGRES_URL` 环境变量已注入，用 `asyncpg` 连接）。
+改用 `check_same_thread=False`，或换用 Postgres（`POSTGRES_URL` 已注入，用 `asyncpg` 连接）。
 
-**Q: 新 App 的接口返回 404？**
-检查 Caddyfile 两处（HTTPS 和 :8900）是否都加了路由，且 `docker restart nervus-caddy` 后是否有报错日志（`docker logs nervus-caddy`）。
+**Q: Caddyfile 改了但路由不生效？**
+执行 `docker restart nervus-caddy`，然后查看日志 `docker logs nervus-caddy`。
 
 **Q: 镜像构建失败（pip 超时）？**
-所有 pip 已走清华镜像，如仍超时检查设备网络，或在 requirements.txt 中固定版本号。
-
----
-
-## 14. 参考：一个完整的最小 App（habit-tracker，端口 8015）
-
-**文件结构：**
-```
-apps/habit-tracker/
-├── Dockerfile
-├── requirements.txt
-└── main.py
-```
-
-**main.py 核心部分：**
-```python
-nervus = NervusApp("habit-tracker")
-
-@nervus._api.get("/habits")
-async def list_habits():
-    with get_db() as conn:
-        rows = conn.execute("SELECT * FROM habits ORDER BY created_at DESC").fetchall()
-    return {"habits": [dict(r) for r in rows]}
-
-@nervus._api.post("/habits")
-async def create_habit(body: dict):
-    ...
-
-if __name__ == "__main__":
-    nervus.run(port=int(os.getenv("APP_PORT", "8015")))
-```
-
-**docker-compose 片段：**
-```yaml
-  app-habit-tracker:
-    build:
-      context: .
-      dockerfile: apps/habit-tracker/Dockerfile
-    image: nervus-app-habit-tracker:latest
-    container_name: nervus-app-habit
-    entrypoint: []
-    ...
-    environment:
-      APP_PORT: "8015"
-      ...
-```
-
-**Caddyfile 路由（两处）：**
-```caddyfile
-    handle /api/habit-tracker/* {
-        uri strip_prefix /api/habit-tracker
-        reverse_proxy nervus-app-habit:8015
-    }
-```
-
-**前端调用：**
-```javascript
-fetch('/api/habit-tracker/habits')
-```
-
----
-
-*手册版本：2026-04-21 · 适用于 Nervus aarch64/Jetson Orin Nano 部署*
+所有 pip 已走清华镜像。如仍超时检查网络，或在 requirements.txt 中固定版本号。
