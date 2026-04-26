@@ -175,49 +175,50 @@ scp -P <端口> frontend/index.html <用户名>@<公网IP>:/home/<用户名>/ner
 
 ```
 nervus/
-├── frontend/
-│   └── index.html              # 全部前端 UI（单文件 SPA）
+├── frontend/                   # 前端（单文件 SPA，直接 scp 更新，无需重新构建）
+│   └── index.html              # 五方向空间导航 UI，包含所有面板逻辑
 │
-├── ios/                        # iOS 原生壳子（Capacitor）
-│   ├── capacitor.config.json   # ← 改这里配置服务器地址
+├── ios/                        # iOS 原生壳子（Capacitor，负责打包安装到手机）
+│   ├── capacitor.config.json   # ← 部署时改这里：填入 Nervus 主机地址
 │   └── ios/App/App/
-│       ├── MainViewController.swift   # SSL 自签名证书绕过 + 状态栏主题
-│       ├── AppDelegate.swift
-│       └── Info.plist
+│       ├── MainViewController.swift   # SSL 自签名证书绕过 + 深色/浅色状态栏
+│       ├── AppDelegate.swift          # 应用生命周期
+│       └── Info.plist                 # 权限声明（麦克风、相册等）
 │
-├── apps/                       # 各功能后端（独立 Docker 服务）
-│   ├── file-manager/           # ✅ Files 面板（端口 8015）
-│   ├── meeting-notes/
-│   ├── pdf-extractor/
-│   ├── video-transcriber/
-│   ├── calorie-tracker/
-│   ├── photo-scanner/
-│   ├── reminder/
-│   ├── personal-notes/
-│   ├── knowledge-base/
-│   ├── rss-reader/
-│   ├── sense/
-│   ├── status-sense/
-│   ├── workflow-viewer/
-│   └── calendar/
+├── apps/                       # 各功能后端，每个都是独立 Docker 服务
+│   ├── file-manager/           # 文件传输助手，已联通前端（端口 8015）
+│   ├── meeting-notes/          # 会议纪要，录音转文字 + AI 摘要（端口 8002）
+│   ├── pdf-extractor/          # PDF 解析与内容提取（端口 8008）
+│   ├── video-transcriber/      # 视频转文字，调用 Whisper（端口 8009）
+│   ├── calorie-tracker/        # 饮食热量记录，图像识别食物（端口 8001）
+│   ├── photo-scanner/          # 相册扫描与 AI 分析（端口 8006）
+│   ├── reminder/               # 提醒事项管理（端口 8012）
+│   ├── personal-notes/         # 个人笔记，支持全文检索（端口 8007）
+│   ├── knowledge-base/         # 知识库，向量检索（端口 8003）
+│   ├── rss-reader/             # RSS 订阅聚合（端口 8010）
+│   ├── sense/                  # 感知数据收集，健康 + 系统状态（端口 8005）
+│   ├── status-sense/           # 系统状态历史，供感知面板展示（端口 8013）
+│   ├── workflow-viewer/        # 工作流可视化，展示 Arbor 执行记录（端口 8014）
+│   ├── life-memory/            # 生活记忆图谱，长期记忆存储（端口 8004）
+│   └── calendar/               # 日历与日程管理（端口 8011）
 │
-├── core/                       # 基础设施
-│   ├── arbor/                  # Arbor Core 事件路由（端口 8090）
-│   ├── caddy/                  # 反向代理（HTTPS 443 + HTTP 8900）
-│   ├── nats/                   # 消息队列
-│   ├── postgres/               # 数据库初始化
-│   ├── redis/                  # 缓存配置
-│   └── whisper/                # 本地语音转文字（端口 8081）
+├── core/                       # 基础设施，所有服务共用
+│   ├── arbor/                  # 事件路由核心，FastRouter/SemanticRouter/DynamicRouter（端口 8090）
+│   ├── caddy/                  # 反向代理，统一入口，自签名 HTTPS（端口 443/8900）
+│   ├── nats/                   # 消息队列，服务间事件总线（端口 4222）
+│   ├── postgres/               # PostgreSQL + pgvector，结构化数据 + 向量检索（端口 5432）
+│   ├── redis/                  # 缓存与上下文图谱（端口 6379）
+│   └── whisper/                # 本地语音识别，供会议纪要 / 视频转写调用（端口 8081）
 │
-├── sdk/
-│   ├── python/                 # Python SDK（各 App 使用）
-│   └── typescript/             # TypeScript SDK
+├── sdk/                        # 开发套件，新 App 接入 Nervus 生态时使用
+│   ├── python/                 # Python SDK，14 个现有 App 均基于此构建
+│   └── typescript/             # TypeScript SDK，供前端或 Node.js App 使用
 │
-├── docker-compose.yml          # 一键启动所有服务
-└── docs/
-    ├── porting-guide.md        # 新 App 接入手册
-    ├── audit-v1.2.md           # v1.2 代码审查报告
-    └── Nervus_完整开发文档.md
+├── docker-compose.yml          # 一键启动全部服务
+└── docs/                       # 项目文档
+    ├── porting-guide.md        # 新 App 接入手册（NSI 接口规范）
+    ├── audit-v1.2.md           # v1.2 代码审查报告，记录已知问题与优先级
+    └── Nervus_完整开发文档.md  # 完整架构设计文档
 ```
 
 ---
