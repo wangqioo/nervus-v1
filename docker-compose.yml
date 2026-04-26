@@ -678,7 +678,6 @@ services:
     restart: unless-stopped
     volumes:
     - files-data:/app/data/files
-    image: nervus-app-files:latest
   app-model-manager:
     build:
       context: .
