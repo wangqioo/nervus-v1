@@ -219,6 +219,7 @@ nervus/
 ├── docker-compose.yml          # 一键启动全部服务
 └── docs/                       # 项目文档
     ├── porting-guide.md        # 新 App 接入手册（NSI 接口规范）
+    ├── platform-v0.1-plan.md   # 平台底座 v0.1 规划
     ├── audit-v1.2.md           # v1.2 代码审查报告，记录已知问题与优先级
     └── Nervus_完整开发文档.md  # 完整架构设计文档
 ```
