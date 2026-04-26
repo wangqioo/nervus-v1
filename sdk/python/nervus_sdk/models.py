@@ -74,3 +74,6 @@ class AppConfig(BaseModel):
 
 # type alias kept for compatibility within SDK
 EventHandler = Callable[[Event], Awaitable[Any]]
+
+# Backward-compatibility alias so old code (Manifest) still works
+Manifest = AppManifest
