@@ -664,6 +664,13 @@ body{position:fixed;inset:0;background:var(--bg);font-family:'PingFang SC','Outf
 /* ── App Center ── */
 .apps-ttl-row{display:flex;align-items:center;justify-content:space-between;padding:0 2px 14px}
 .apps-manage-btn{background:none;border:none;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;padding:4px 2px}
+.apps-section{margin-bottom:24px}
+.apps-sec-head{display:flex;align-items:flex-end;justify-content:space-between;margin:2px 2px 11px}
+.apps-sec-title{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.02em}
+.apps-sec-sub{font-size:10.5px;color:var(--text3);margin-top:2px}
+.apps-sec-badge{font-size:10px;color:var(--accent);background:var(--accent-s);border:1px solid var(--accent-g);border-radius:999px;padding:4px 8px;font-weight:600}
+.apps-sec-badge.external{color:var(--text3);background:var(--s1);border-color:var(--border2)}
+.apps-empty{grid-column:1/-1;background:var(--s1);border:1px dashed var(--border2);border-radius:18px;padding:18px 12px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6}
 .aitem{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .aitem:active .aico{transform:scale(.9)}
 .aico{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;transition:transform .15s}
@@ -1498,7 +1505,26 @@ border-radius: <span class="cs">16px</span>;</div>
           <div class="apps-ttl">应用</div>
           <button class="apps-manage-btn" id="appsManageBtn" onclick="toggleEditMode()">管理</button>
         </div>
-        <div class="agrid" id="agrid"></div>
+        <div class="apps-section">
+          <div class="apps-sec-head">
+            <div>
+              <div class="apps-sec-title">Nervus 原生应用</div>
+              <div class="apps-sec-sub">自主开发 · 接入 NSI / 事件总线</div>
+            </div>
+            <span class="apps-sec-badge">系统内置</span>
+          </div>
+          <div class="agrid" id="nervusGrid"></div>
+        </div>
+        <div class="apps-section">
+          <div class="apps-sec-head">
+            <div>
+              <div class="apps-sec-title">外部 Web 演示</div>
+              <div class="apps-sec-sub">普通链接 · 用于演示和临时入口</div>
+            </div>
+            <span class="apps-sec-badge external">可添加</span>
+          </div>
+          <div class="agrid" id="externalGrid"></div>
+        </div>
       </div>
     </div>
 
@@ -1602,42 +1628,70 @@ function _saveApps(apps) { localStorage.setItem(APPS_KEY, JSON.stringify(apps));
 function _seedApps() {
   if (localStorage.getItem(APPS_KEY)) return;
   const seed = [
-    {id:'s1', name:'会议纪要', url:'https://150.158.146.192:6105', icon:'🎙', color:'linear-gradient(135deg,rgba(255,100,120,.25),rgba(200,60,80,.1))'},
-    {id:'s2', name:'PDF 提取', url:'http://150.158.146.192:6121',  icon:'📄', color:'linear-gradient(135deg,rgba(80,220,180,.25),rgba(40,170,140,.1))'},
-    {id:'s3', name:'视频转录', url:'http://150.158.146.192:6124',  icon:'🎬', color:'linear-gradient(135deg,rgba(255,100,180,.25),rgba(200,60,140,.1))'},
-    {id:'s4', name:'热量管理', url:'http://150.158.146.192:6125',  icon:'🔥', color:'linear-gradient(135deg,rgba(255,110,70,.25),rgba(220,70,40,.1))'},
-    {id:'s5', name:'隧道',     url:'http://150.158.146.192:6128',  icon:'🌐', color:'linear-gradient(135deg,rgba(80,160,255,.25),rgba(40,110,220,.1))'},
-    {id:'s6', name:'MBTI',     url:'http://150.158.146.192:6133',  icon:'✨', color:'linear-gradient(135deg,rgba(180,130,255,.25),rgba(130,90,220,.1))'},
-    {id:'s7', name:'澜',       url:'https://150.158.146.192:6132', icon:'🌊', color:'linear-gradient(135deg,rgba(94,234,181,.25),rgba(40,170,140,.1))'},
-    {id:'s8', name:'Gemma4',   url:'http://150.158.146.192:6134',  icon:'🤖', color:'linear-gradient(135deg,rgba(139,114,255,.25),rgba(107,82,240,.1))'},
-    {id:'s9', name:'待办提醒', url:'http://150.158.146.192:6135',  icon:'📋', color:'linear-gradient(135deg,rgba(255,170,92,.25),rgba(220,120,30,.1))'},
-    {id:'s10',name:'相册扫描', url:'http://150.158.146.192:6143',  icon:'📸', color:'linear-gradient(135deg,rgba(150,120,255,.25),rgba(100,80,210,.1))'},
-    {id:'s11',name:'密码本',   url:'http://150.158.146.192:6155',  icon:'🔐', color:'linear-gradient(135deg,rgba(255,160,70,.25),rgba(220,120,40,.1))'},
+    {id:'s1', type:'external', name:'会议纪要', url:'https://150.158.146.192:6105', icon:'🎙', color:'linear-gradient(135deg,rgba(255,100,120,.25),rgba(200,60,80,.1))'},
+    {id:'s2', type:'external', name:'PDF 提取', url:'http://150.158.146.192:6121',  icon:'📄', color:'linear-gradient(135deg,rgba(80,220,180,.25),rgba(40,170,140,.1))'},
+    {id:'s3', type:'external', name:'视频转录', url:'http://150.158.146.192:6124',  icon:'🎬', color:'linear-gradient(135deg,rgba(255,100,180,.25),rgba(200,60,140,.1))'},
+    {id:'s4', type:'external', name:'热量管理', url:'http://150.158.146.192:6125',  icon:'🔥', color:'linear-gradient(135deg,rgba(255,110,70,.25),rgba(220,70,40,.1))'},
+    {id:'s5', type:'external', name:'隧道',     url:'http://150.158.146.192:6128',  icon:'🌐', color:'linear-gradient(135deg,rgba(80,160,255,.25),rgba(40,110,220,.1))'},
+    {id:'s6', type:'external', name:'MBTI',     url:'http://150.158.146.192:6133',  icon:'✨', color:'linear-gradient(135deg,rgba(180,130,255,.25),rgba(130,90,220,.1))'},
+    {id:'s7', type:'external', name:'澜',       url:'https://150.158.146.192:6132', icon:'🌊', color:'linear-gradient(135deg,rgba(94,234,181,.25),rgba(40,170,140,.1))'},
+    {id:'s8', type:'external', name:'Gemma4',   url:'http://150.158.146.192:6134',  icon:'🤖', color:'linear-gradient(135deg,rgba(139,114,255,.25),rgba(107,82,240,.1))'},
+    {id:'s9', type:'external', name:'待办提醒', url:'http://150.158.146.192:6135',  icon:'📋', color:'linear-gradient(135deg,rgba(255,170,92,.25),rgba(220,120,30,.1))'},
+    {id:'s10',type:'external', name:'相册扫描', url:'http://150.158.146.192:6143',  icon:'📸', color:'linear-gradient(135deg,rgba(150,120,255,.25),rgba(100,80,210,.1))'},
+    {id:'s11',type:'external', name:'密码本',   url:'http://150.158.146.192:6155',  icon:'🔐', color:'linear-gradient(135deg,rgba(255,160,70,.25),rgba(220,120,40,.1))'},
   ];
   _saveApps(seed);
 }
 _seedApps();
 
-function renderAppGrid() {
-  const grid = document.getElementById('agrid');
-  const apps = _loadApps();
-  grid.innerHTML = '';
-  apps.forEach(app => {
-    const item = document.createElement('div');
-    item.className = 'aitem';
-    item.innerHTML = `<button class="adel" onclick="deleteApp('${app.id}',event)">✕</button><div class="aico" style="background:${app.color}">${app.icon}</div><span class="aname">${app.name}</span>`;
-    item.addEventListener('click', () => { if (editMode) return; openWebApp(app.name, app.url); });
-    let _pt;
+const NERVUS_APPS = [
+  {id:'n-calorie', name:'热量管理', path:'/api/calorie/', icon:'🔥', color:'linear-gradient(135deg,rgba(255,110,70,.25),rgba(220,70,40,.1))'},
+  {id:'n-meeting', name:'会议纪要', path:'/api/meeting/', icon:'🎙', color:'linear-gradient(135deg,rgba(255,100,120,.25),rgba(200,60,80,.1))'},
+  {id:'n-knowledge', name:'知识库', path:'/api/knowledge/', icon:'📚', color:'linear-gradient(135deg,rgba(139,114,255,.25),rgba(107,82,240,.1))'},
+  {id:'n-memory', name:'生活记忆', path:'/api/life/', icon:'🧠', color:'linear-gradient(135deg,rgba(180,130,255,.25),rgba(130,90,220,.1))'},
+  {id:'n-sense', name:'感知', path:'/api/sense/', icon:'🧬', color:'linear-gradient(135deg,rgba(94,234,181,.25),rgba(40,170,140,.1))'},
+  {id:'n-photo', name:'相册扫描', path:'/api/photo/', icon:'📸', color:'linear-gradient(135deg,rgba(150,120,255,.25),rgba(100,80,210,.1))'},
+  {id:'n-notes', name:'个人笔记', path:'/api/notes/', icon:'📝', color:'linear-gradient(135deg,rgba(80,160,255,.25),rgba(40,110,220,.1))'},
+  {id:'n-pdf', name:'PDF 提取', path:'/api/pdf/', icon:'📄', color:'linear-gradient(135deg,rgba(80,220,180,.25),rgba(40,170,140,.1))'},
+  {id:'n-video', name:'视频转录', path:'/api/video/', icon:'🎬', color:'linear-gradient(135deg,rgba(255,100,180,.25),rgba(200,60,140,.1))'},
+  {id:'n-rss', name:'RSS', path:'/api/rss/', icon:'📰', color:'linear-gradient(135deg,rgba(255,170,92,.25),rgba(220,120,30,.1))'},
+  {id:'n-calendar', name:'日历', path:'/api/calendar/', icon:'📅', color:'linear-gradient(135deg,rgba(80,200,255,.25),rgba(40,160,220,.1))'},
+  {id:'n-reminder', name:'提醒', path:'/api/reminder/', icon:'🔔', color:'linear-gradient(135deg,rgba(255,215,0,.22),rgba(200,165,0,.1))'},
+  {id:'n-status', name:'系统状态', path:'/api/status-sense/', icon:'📊', color:'linear-gradient(135deg,rgba(180,255,100,.2),rgba(120,200,40,.08))'},
+  {id:'n-workflow', name:'工作流', path:'/api/workflow/', icon:'🧩', color:'linear-gradient(135deg,rgba(139,114,255,.25),rgba(107,82,240,.1))'},
+];
+
+function renderAppItem(app, canDelete) {
+  const item = document.createElement('div');
+  item.className = 'aitem';
+  item.innerHTML = `${canDelete ? `<button class="adel" onclick="deleteApp('${app.id}',event)">✕</button>` : ''}<div class="aico" style="background:${app.color}">${app.icon}</div><span class="aname">${app.name}</span>`;
+  item.addEventListener('click', () => {
+    if (editMode) return;
+    if (app.url) openWebApp(app.name, app.url);
+    else showAppPlaceholder(app.name);
+  });
+  let _pt;
+  if (canDelete) {
     item.addEventListener('touchstart', () => { _pt = setTimeout(() => toggleEditMode(true), 550); }, {passive:true});
     item.addEventListener('touchend', () => clearTimeout(_pt), {passive:true});
     item.addEventListener('touchmove', () => clearTimeout(_pt), {passive:true});
-    grid.appendChild(item);
-  });
+  }
+  return item;
+}
+
+function renderAppGrid() {
+  const nervusGrid = document.getElementById('nervusGrid');
+  const externalGrid = document.getElementById('externalGrid');
+  const apps = _loadApps().map(app => ({...app, type: app.type || 'external'}));
+  nervusGrid.innerHTML = '';
+  externalGrid.innerHTML = '';
+  NERVUS_APPS.forEach(app => nervusGrid.appendChild(renderAppItem(app, false)));
+  apps.filter(app => app.type === 'external').forEach(app => externalGrid.appendChild(renderAppItem(app, true)));
   const addItem = document.createElement('div');
   addItem.className = 'aitem aitem-add';
   addItem.innerHTML = `<div class="aico-add">＋</div><span class="aname">添加</span>`;
   addItem.onclick = () => { if (editMode) { toggleEditMode(false); return; } openAppModal(); };
-  grid.appendChild(addItem);
+  externalGrid.appendChild(addItem);
 }
 
 function openWebApp(name, url) {
@@ -1646,6 +1700,12 @@ function openWebApp(name, url) {
   document.querySelectorAll('.app-screen').forEach(s => s.classList.remove('open'));
   document.getElementById('app-webview').classList.add('open');
 }
+function showAppPlaceholder(name) {
+  document.querySelector('#notif .notif-t').textContent = name + ' 是 Nervus 原生应用';
+  document.querySelector('#notif .notif-d').textContent = '当前是后端服务入口，前端详情页后续接入';
+  showNotif();
+}
+
 function closeWebApp() {
   document.getElementById('app-webview').classList.remove('open');
   document.getElementById('webview-frame').src = '';
@@ -1653,8 +1713,8 @@ function closeWebApp() {
 
 function toggleEditMode(on) {
   editMode = (on !== undefined) ? on : !editMode;
-  const grid = document.getElementById('agrid');
-  grid.classList.toggle('editing', editMode);
+  const externalGrid = document.getElementById('externalGrid');
+  externalGrid.classList.toggle('editing', editMode);
   document.getElementById('appsManageBtn').textContent = editMode ? '完成' : '管理';
 }
 
@@ -1663,7 +1723,7 @@ function deleteApp(id, e) {
   const apps = _loadApps().filter(a => a.id !== id);
   _saveApps(apps);
   renderAppGrid();
-  if (editMode) document.getElementById('agrid').classList.add('editing');
+  if (editMode) document.getElementById('externalGrid').classList.add('editing');
 }
 
 function openAppModal() {
@@ -1696,7 +1756,7 @@ function saveAppEntry() {
   if (!url) { document.getElementById('app-f-url').focus(); return; }
   if (!/^https?:\/\//.test(url)) url = 'https://' + url;
   const apps = _loadApps();
-  apps.push({ id: 'a_' + Date.now(), name, url, icon: _selEmoji, color: ICON_COLORS[_colorIdx++ % ICON_COLORS.length] });
+  apps.push({ id: 'a_' + Date.now(), type: 'external', name, url, icon: _selEmoji, color: ICON_COLORS[_colorIdx++ % ICON_COLORS.length] });
   _saveApps(apps);
   closeAppModal();
   renderAppGrid();
