@@ -2,7 +2,7 @@
 
 > 本文档是 Nervus 系统的唯一权威参考。覆盖产品灵魂、系统架构、设计规范、开发契约与开发计划。所有开发决策以此为准。
 >
-> 配合 `app-prototype.html` 交互原型使用。
+> 配合 `mobile/index.html`（单文件 SPA，即全部前端实现）使用。
 
 ---
 
@@ -372,39 +372,61 @@ Arbor 只有三个问题：
 
 ## 4.1 导航结构
 
-采用 **5 宫格世界坐标**系统。整个界面是一张 1170×2532 的大画布，手机窗口（390×844）在上面平移。
+采用 **5 宫格世界坐标**系统。`.panels` 是一块 3×3 面板宽高的大画布，`.viewport` 在上面平移，每次只显示一个格子。
 
 ```
          [感知页 p-sense]
-              ↑
+              ↑ 下拉（手指向下）
 [对话页] ← [主页 p-home] → [文件管理 p-files]
- p-chat       ↓
+ p-chat  左划(手指左)  右划(手指右)
+              ↓ 上推（手指向上）
          [应用中心 p-apps]
 ```
 
-| 面板 | CSS ID | 进入手势 |
-|------|--------|----------|
-| 主页（默认） | `p-home` | 从任意方向返回 |
-| AI 感知 | `p-sense` | 主页**下滑** |
-| AI 对话 | `p-chat` | 主页**右滑** |
-| 文件管理 | `p-files` | 主页**左滑** |
-| 应用中心 | `p-apps` | 主页**上滑** |
+| 面板 | CSS ID | 进入手势 | JS 条件 |
+|------|--------|----------|---------|
+| 主页（默认） | `#p-home` | 从任意方向返回 | — |
+| AI 感知 | `#p-sense` | 主页**下拉**（手指向下，dy > 0） | `dy > 0 && current === 'home'` |
+| AI 对话 | `#p-chat` | 主页**向左划**（手指向左，dx < 0） | `dx > 0 && current === 'home'` |
+| 文件管理 | `#p-files` | 主页**向右划**（手指向右，dx > 0） | `dx < 0 && current === 'home'` |
+| 应用中心 | `#p-apps` | 主页**上推**（手指向上，dy < 0） | `dy < 0 && current === 'home'` |
+
+> 手势方向以**手指移动方向**为准：手指向下（dy > 0）= 下拉，手指向上（dy < 0）= 上推。
 
 **手势实现规范：**
 ```
-touchstart/mousedown → 记录起点 (sx, sy)
-touchend/mouseup → 计算 (dx, dy)
+touchstart → 记录起点 (sx, sy)
+touchend   → 计算 dx = ex-sx, dy = ey-sy
 绝对位移 > 55px 且主轴更大 → 触发导航切换
 
 注意：passive: true（不阻止原生滚动）
-      App 开启时，面板手势完全禁用
-      应用开发规范 App 内，手势重定向为内部页面切换
+      .app-screen.open 时，面板手势完全禁用
+```
+
+**面板坐标（CSS）：**
+```css
+#p-sense { left: var(--PW); top: 0 }           /* 第0行 */
+#p-chat  { left: 0;          top: var(--PH) }  /* 第1行，第0列 */
+#p-home  { left: var(--PW);  top: var(--PH) }  /* 第1行，第1列（默认） */
+#p-files { left: calc(var(--PW)*2); top: var(--PH) }
+#p-apps  { left: var(--PW);  top: calc(var(--PH)*2) }
 ```
 
 **面板切换动画：**
 ```css
 .panels {
   transition: transform 460ms cubic-bezier(.32,.72,0,1);
+}
+```
+
+**JS 导航函数：**
+```js
+function nav(name) {
+  PW = window.innerWidth;
+  PH = viewportEl.clientHeight;   // 安全区域后的实际高度，非 innerHeight
+  const [col, row] = PANEL_GRID[name];
+  panelEl.style.transform = `translate(${-col*PW}px,${-row*PH}px)`;
+  current = name;
 }
 ```
 
@@ -428,6 +450,23 @@ touchend/mouseup → 计算 (dx, dy)
 | `--red` | `#FF6E7A` | `#E8344A` | 危险色（红） |
 
 主题根据 `prefers-color-scheme` 自动切换，无需手动控制。
+
+**实现要点：**
+```html
+<!-- 必须声明双主题支持，否则 WKWebView 不响应系统切换 -->
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme:dark)"  content="#07070E">
+<meta name="theme-color" media="(prefers-color-scheme:light)" content="#F2F2F7">
+```
+```css
+:root {
+  color-scheme: light dark;   /* 让原生表单、滚动条等元素也跟随主题 */
+}
+@media (prefers-color-scheme: light) {
+  :root { /* 覆盖浅色主题变量 */ }
+}
+```
+iOS 状态栏文字颜色通过 `MainViewController.swift` 的 `preferredStatusBarStyle` 随系统切换。
 
 ## 4.3 字体规范
 
@@ -516,14 +555,74 @@ box-shadow: 0 4px 0 -2px var(--s2),  0 4px 0 -1px var(--border),
 
 ## 4.8 安全区域
 
-手机外框圆角 52px，以下区域有裁切风险：
+Nervus 运行在真实全屏环境（`viewport-fit=cover`），无模拟手机壳，需正确处理 Dynamic Island / 刘海 / Home Indicator 区域。
 
-| 区域 | 规范 |
-|------|------|
-| 底部输入栏 | 必须用 `bottom:16px; left:16px; right:16px` 浮动胶囊，不得贴边 |
-| 顶部内容 | 状态栏 58px + 导航栏 100px，内容从 `top: 100px` 开始 |
-| 底部内容 | 留出 home indicator 区域约 34px |
-| 右侧气泡 | max-width 控制在 220–255px，`padding-right ≥ 20px` |
+### 顶部安全区（Dynamic Island / 刘海）
+
+**核心做法：** `.viewport` 整体下移 `env(safe-area-inset-top)` 像素，所有面板内容自然从安全区下方开始，无需每个元素单独偏移。
+
+```css
+/* CSS 变量（初始值 0，JS 启动后写入真实像素值） */
+:root { --SAT: 0px; }
+
+/* viewport 整体下移 */
+.viewport {
+  position: absolute;
+  top: env(safe-area-inset-top, 0px);
+  left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+}
+
+/* 面板高度 = 屏幕高度 − 安全区 */
+:root { --PH: calc(100dvh - var(--SAT)); }
+```
+
+```js
+// 启动时用探针精确测量，写回 --SAT 和 viewport.style.top
+function applySafeArea() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:env(safe-area-inset-top,0px);height:0;visibility:hidden';
+  document.body.appendChild(probe);
+  const sat = probe.getBoundingClientRect().top;
+  probe.remove();
+  if (sat > 0) {
+    document.documentElement.style.setProperty('--SAT', sat + 'px');
+    viewportEl.style.top = sat + 'px';
+  }
+}
+```
+
+### 各面板顶部留白规范（viewport 内，无需再加 safe-area-inset）
+
+| 面板 | 实现方式 | 顶部留白 |
+|------|---------|---------|
+| 主页 | `.hc` padding-top | 24px |
+| 感知 | `.sense-scroll` top | 8px |
+| 对话 | `.chat-hdr` height | 52px |
+| 文件 | `.files-hdr` height | 52px |
+| 应用 | `.apps-c` padding-top | 22px |
+
+### 底部安全区（Home Indicator）
+
+底部输入栏和可滚动内容末尾使用 `env(safe-area-inset-bottom)` 保留 Home Indicator 空间：
+
+```css
+padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 10px));
+```
+
+### 面板隔离（z-index 穿透防护）
+
+每个 `.panel` 必须设置 `isolation: isolate`，否则面板内高 `z-index` 元素（如语音 Orb 的 `z-index:60`）会穿透到相邻面板上方。
+
+```css
+.panel {
+  position: absolute;
+  width: var(--PW);
+  height: var(--PH);
+  overflow: hidden;
+  isolation: isolate;   /* 关键：限制 z-index 作用域在本面板内 */
+}
+```
 
 ---
 
@@ -1093,39 +1192,32 @@ app.run({ port: 8001 })
 全部场景静默完成，无需用户主动操作
 ```
 
-## Sprint 6 — Capacitor iOS Shell（第 9–10 周）
+## Sprint 6 — Capacitor iOS Shell ✅ 已完成（v1.2）
 
 **目标：** 完整的 iOS 原生体验，端到端 MVP。
 
+**已完成（v1.2）：**
 ```
-□ Capacitor 项目初始化（包裹 app-prototype.html）
-□ 5面板手势系统验证（JS 实现 vs 原生性能对比）
-□ 相册访问插件（PHPhotoLibrary）：
-    请求权限
-    监听新照片（PHPhotoLibraryChangeObserver）
-    上传到边缘设备相册扫描器
-□ 麦克风录音插件（AVAudioRecorder）：
-    录音文件传输到边缘设备
-    会议纪要 App 触发
-□ iOS Background Fetch：
-    注册后台任务
-    定期触发相册扫描器
-□ 本地推送通知（UserNotifications）：
-    Arbor 完成任务后推送通知
-    Nervus 全局弹窗通知
-□ 局域网发现（Bonjour/mDNS）：
-    自动发现同局域网的边缘设备
-    无需手动配置 IP
-□ 打包 & TestFlight 测试
+✅ Capacitor 项目（ios-shell/）包裹 mobile/index.html，通过 server.url 加载远端 Nervus
+✅ 5面板手势系统在真机上验证通过
+✅ MainViewController.swift：
+    SSL 自签名证书绕过（WKNavigationDelegate 代理模式）
+    状态栏颜色跟随系统深/浅色主题（preferredStatusBarStyle）
+✅ Info.plist：完整权限声明（相机/相册/麦克风/定位）
+✅ Bundle ID：com.<用户名>.nervus
+✅ 安装流程：npx cap sync → Xcode → Run（免费 Apple ID 可用，7天有效期）
+✅ 全屏适配：viewport-fit=cover + env(safe-area-inset-top) + JS 探针
+✅ 深/浅色自动切换：color-scheme meta + CSS @media + 状态栏颜色
+```
 
-验收（MVP 完整验收）：
-  □ 手机拍食物照片 → 热量 App 自动记录（< 30s）
-  □ 开会录音 + 拍白板 → 完整会议报告（结束后 2min 内）
-  □ 保存文章链接 → 写入知识库 → 可语义问答
-  □ Sense 页实时展示当前状态
-  □ 系统在手机锁屏后继续后台处理
-  □ 收到任务完成通知
-  □ 全部操作不依赖互联网
+**待完成（后续 Sprint）：**
+```
+□ 相册访问插件（PHPhotoLibrary）：监听新照片并上传到 Orin
+□ 麦克风录音插件：录音传输到会议纪要 App
+□ iOS Background Fetch：定期触发相册扫描
+□ 本地推送通知（UserNotifications）：Arbor 完成后推送
+□ 局域网自动发现（Bonjour/mDNS）：无需手动配置 IP
+□ TestFlight / 付费证书（突破 7 天限制）
 ```
 
 ---
@@ -1245,6 +1337,6 @@ Nervus 不是要成为最聪明的 AI。
 
 ---
 
-*文档版本：v1.0 | 2026-04-20*
-*配合文件：`app-prototype.html`、`Nervus_产品开发文字稿.md`*
+*文档版本：v1.2 | 2026-04-26*
+*配合文件：`mobile/index.html`（单文件 SPA 全部前端实现）、`ios-shell/`（Capacitor iOS 壳子）*
 *Nervus · 从未停止存在的系统*
