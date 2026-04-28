@@ -495,8 +495,8 @@ services:
     - 8090:8090
     restart: unless-stopped
     volumes:
-    - ./core/arbor/flows:/app/flows:ro
-    - ./config:/app/config:ro
+    - ./core/arbor:/srv/arbor:ro      # hot-reload: restart arbor-core to pick up changes
+    - ./config:/srv/arbor/config:ro
     image: nervus-arbor-core:latest
   caddy:
     container_name: nervus-caddy
