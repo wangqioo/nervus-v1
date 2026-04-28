@@ -3,33 +3,28 @@
 拍照 → AI 识别食物 → 自动记录热量，零手动输入
 """
 
-import json
 import os
 import sqlite3
 from datetime import datetime, date
-from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-import uvicorn
 
-# 导入 nervus-sdk（在容器中通过 pip install 安装）
 import sys
 sys.path.insert(0, "/app/nervus-sdk")
 from nervus_sdk import NervusApp, Context, emit
-from nervus_sdk.models import Event, Manifest, SubscribeConfig, ActionSpec, AppConfig
+from nervus_sdk.models import Event
 
 # ── 初始化 ────────────────────────────────────────────────
 
-app_config = AppConfig.from_env("calorie-tracker")
 nervus = NervusApp("calorie-tracker")
 
-# 加载 manifest
-with open(Path(__file__).parent / "manifest.json") as f:
-    manifest_data = json.load(f)
-nervus.set_manifest(Manifest(**manifest_data))
+_HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
+
+
+@nervus._api.get("/", response_class=HTMLResponse)
+async def index():
+    return HTMLResponse(_HTML)
 
 # SQLite 数据库（每个 App 自治）
 DB_PATH = os.getenv("DB_PATH", "/data/calorie-tracker.db")
@@ -283,6 +278,24 @@ async def add_manual_meal(body: dict):
         ))
         conn.commit()
     return {"success": True, "meal_id": meal_id}
+
+
+from fastapi import UploadFile, File
+
+@nervus._api.post("/meals/photo")
+async def analyze_photo_upload_v2(file: UploadFile = File(...)):
+    """接收前端上传的食物图片，AI 分析返回识别结果"""
+    import tempfile
+    content = await file.read()
+    suffix = Path(file.filename or "photo.jpg").suffix or ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    try:
+        result = await analyze_meal_with_ai(tmp_path, [])
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+    return result
 
 
 if __name__ == "__main__":

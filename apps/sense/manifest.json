@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "id": "sense",
+  "name": "感知",
+  "type": "nervus",
+  "version": "0.1.0",
+  "description": "实时感知用户状态，整合 Context Graph 多维数据，AI 推断认知负荷",
+  "icon": "🧠",
+  "route": "/api/sense",
+  "service": {
+    "container": "nervus-app-sense",
+    "internal_url": "http://nervus-app-sense:8005",
+    "port": 8005
+  },
+  "capabilities": {
+    "actions": [],
+    "consumes": [
+      "health.calorie.meal_logged",
+      "context.user_state.updated",
+      "meeting.recording.processed"
+    ],
+    "emits": [],
+    "models": [],
+    "writes": []
+  }
+}

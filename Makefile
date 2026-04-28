@@ -1,7 +1,7 @@
 # Nervus v1 — Developer Makefile
 # Usage: make <target>
 
-.PHONY: help up down restart logs status test test-api test-model reload-arbor reload-caddy reload-flows sync-orin
+.PHONY: help up down restart logs status test test-api test-model test-apps reload-arbor reload-caddy reload-flows sync-orin new-app
 
 ORIN ?= nvidia@150.158.146.192
 ORIN_PORT ?= 6000
@@ -27,7 +27,11 @@ help:
 	@echo "  Testing"
 	@echo "    make test            Run all local tests"
 	@echo "    make test-api        Test all Arbor APIs (requires running stack)"
+	@echo "    make test-apps       Ping /health on all 16 app containers"
 	@echo "    make test-model      Test local model inference"
+	@echo ""
+	@echo "  Scaffolding"
+	@echo "    make new-app name=habit-tracker port=8017   Create new app skeleton"
 	@echo ""
 	@echo "  Deploy to Orin"
 	@echo "    make sync-orin       Push code + restart Arbor on Orin"
@@ -80,6 +84,17 @@ test-model:
 	@curl -sf -m 90 -X POST http://localhost:8090/models/qwen3.5/test \
 		-H 'Content-Type: application/json' \
 		-d '{"prompt":"用一句话打个招呼"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); print("  response:", d.get("content","")[:80]) if not d.get("error") else print("  ERROR:", d["error"])'
+
+test-apps:
+	@echo "Testing all app /health endpoints..."
+	@bash tests/test_apps.sh
+
+# ── Scaffolding ───────────────────────────────────────────────────────────────
+
+new-app:
+	@[ -n "$(name)" ] || (echo "Usage: make new-app name=<app-id> port=<port>"; exit 1)
+	@[ -n "$(port)" ] || (echo "Usage: make new-app name=<app-id> port=<port>"; exit 1)
+	@bash scripts/new-app.sh "$(name)" "$(port)"
 
 # ── Deploy to Orin ────────────────────────────────────────────────────────────
 

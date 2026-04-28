@@ -4,7 +4,6 @@
 核心特色：白板照片与录音时间窗口交叉匹配，自动整合成完整报告
 """
 
-import json
 import os
 import sqlite3
 import uuid
@@ -16,13 +15,11 @@ import httpx
 import sys
 sys.path.insert(0, "/app/nervus-sdk")
 from nervus_sdk import NervusApp, Context, emit
-from nervus_sdk.models import Event, Manifest
+from nervus_sdk.models import Event
 
 # ── 初始化 ────────────────────────────────────────────────
 
 nervus = NervusApp("meeting-notes")
-with open(Path(__file__).parent / "manifest.json") as f:
-    nervus.set_manifest(Manifest(**json.load(f)))
 
 DB_PATH = os.getenv("DB_PATH", "/data/meeting-notes.db")
 WHISPER_URL = os.getenv("WHISPER_URL", "http://localhost:8081")
