@@ -1168,6 +1168,38 @@ border-radius: <span class="cs">16px</span>;</div>
         </div>
       </div>
 
+      <!-- PAGE 13: iframe 运行规范 -->
+      <div class="spec-page">
+        <div class="spec-ttl">iframe 运行规范</div>
+        <div class="spec-sub">所有 App 运行在父页面的 iframe 内，部分 DOM/BOM API 会穿透 iframe 边界，必须遵守以下规则。</div>
+        <div class="spec-sttl">禁止使用</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:2">
+          <div>· <span style="color:var(--red);font-family:monospace">element.scrollIntoView()</span> — 会触发父页面滚动，造成意外导航</div>
+          <div>· <span style="color:var(--red);font-family:monospace">window.parent.*</span> — 禁止访问父框架对象</div>
+          <div>· <span style="color:var(--red);font-family:monospace">window.top.*</span> — 禁止访问顶层框架</div>
+          <div>· <span style="color:var(--red);font-family:monospace">window.location = ...</span> — 禁止强制跳转 URL</div>
+        </div>
+        <div class="spec-sttl">替代方案</div>
+        <div class="code-block"><span class="cc">// ❌ 错误：scrollIntoView 会穿透 iframe</span>
+element.<span style="color:var(--red)">scrollIntoView</span>({ behavior: <span class="cs">'smooth'</span> });
+
+<span class="cc">// ✅ 正确：只在容器内部滚动</span>
+<span class="ck">const</span> container = document.getElementById(<span class="cs">'my-scroll-area'</span>);
+container.scrollTop = container.scrollHeight;</div>
+        <div class="spec-sttl">滚动容器原则</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.8">
+          <div>· 每个 App 必须有明确的滚动容器（设 overflow-y:auto）</div>
+          <div>· 滚动操作只操作该容器的 scrollTop，不调用全局 API</div>
+          <div>· body 高度应固定为 100vh，禁止让 body 本身可滚动</div>
+        </div>
+        <div class="spec-sttl">API 调用规范</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.8">
+          <div>· 所有 API 请求用相对路径 <span style="font-family:monospace;color:var(--accent)">/api/...</span>，由 Caddy 反代</div>
+          <div>· 禁止硬编码 IP 或端口</div>
+          <div>· 错误必须在 App 内部展示，禁止 alert()</div>
+        </div>
+      </div>
+
     </div><!-- .spec-scroll -->
     <div class="spec-dot-bar" id="specDotBar"></div>
   </div><!-- #app-spec -->
