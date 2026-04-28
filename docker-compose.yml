@@ -496,7 +496,7 @@ services:
     restart: unless-stopped
     volumes:
     - ./core/arbor:/srv/arbor:ro      # hot-reload: restart arbor-core to pick up changes
-    - ./config:/srv/arbor/config:ro
+    - ./config:/app/config:ro         # models.json, flows/, public.json
     image: nervus-arbor-core:latest
   caddy:
     container_name: nervus-caddy
