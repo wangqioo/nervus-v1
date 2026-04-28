@@ -555,10 +555,7 @@ async function doDelete() {
 /* ── Backgrounds ── */
 .fm-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(ellipse 260px 200px at 20% 8%, rgba(255,170,92,.07) 0%, transparent 65%),
-    radial-gradient(ellipse 300px 220px at 85% 85%, rgba(139,114,255,.06) 0%, transparent 65%),
-    var(--bg);
+  background: var(--bg);
 }
 
 /* ── Header ── */

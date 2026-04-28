@@ -201,7 +201,7 @@ onMounted(load)
 .page { position: relative; height: 100%; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
 .detail-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 300px 240px at 50% 0%, rgba(139,114,255,.1) 0%, transparent 65%), var(--bg);
+  background: var(--bg);
 }
 
 .app-hdr {

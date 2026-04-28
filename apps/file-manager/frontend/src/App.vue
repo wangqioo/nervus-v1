@@ -329,24 +329,6 @@ body {
   background: linear-gradient(135deg, rgba(255,255,255,.7) 0%, transparent 55%);
 }
 
-/* Light theme page backgrounds */
-[data-theme="light"] .home-bg {
-  background:
-    radial-gradient(ellipse 320px 280px at 50% 5%, rgba(107,82,240,.07) 0%, transparent 70%),
-    radial-gradient(ellipse 400px 300px at 5% 85%, rgba(0,200,150,.05) 0%, transparent 70%),
-    var(--bg) !important;
-}
-[data-theme="light"] .page-bg {
-  background:
-    radial-gradient(ellipse 300px 240px at 80% 10%, rgba(224,130,10,.06) 0%, transparent 65%),
-    var(--bg) !important;
-}
-[data-theme="light"] .detail-bg, [data-theme="light"] .search-bg {
-  background:
-    radial-gradient(ellipse 300px 240px at 50% 0%, rgba(107,82,240,.07) 0%, transparent 65%),
-    var(--bg) !important;
-}
-
 /* Mobile: full screen (no phone frame) */
 @media (max-width: 600px) {
   body { display: block; background: var(--bg) !important; background-image: none !important; }

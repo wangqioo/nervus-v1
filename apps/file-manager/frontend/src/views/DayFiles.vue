@@ -164,7 +164,7 @@ onMounted(async () => {
 .page { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
 .page-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 280px 200px at 80% 10%, rgba(139,114,255,.06) 0%, transparent 65%), var(--bg);
+  background: var(--bg);
 }
 
 /* Header */

@@ -34,7 +34,7 @@ const typeLabel = computed(() => TYPE_LABELS[fileType.value] || '')
 .page { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
 .search-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 280px 220px at 85% 12%, rgba(94,234,181,.08) 0%, transparent 65%), var(--bg);
+  background: var(--bg);
 }
 .app-hdr {
   position: relative; z-index: 10; height: 90px;

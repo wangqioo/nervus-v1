@@ -212,7 +212,7 @@ onMounted(async () => {
 .page { position: relative; height: 100%; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
 .page-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 300px 240px at 80% 10%, rgba(255,170,92,.07) 0%, transparent 65%), var(--bg);
+  background: var(--bg);
 }
 
 .app-hdr {
