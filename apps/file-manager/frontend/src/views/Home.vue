@@ -7,7 +7,6 @@
     @mouseup="onMouseUp"
     @mouseleave="onMouseUp">
 
-    <div class="fm-bg"></div>
 
     <!-- Header -->
     <header class="fm-hdr">
@@ -253,7 +252,6 @@ import { useRouter } from 'vue-router'
 import { getFiles, uploadFile, uploadLink, uploadText, deleteFile, getStats, imgUrl } from '../api/files'
 import { useTheme } from '../composables/useTheme'
 
-const { theme, toggle: toggleTheme } = useTheme()
 const router = useRouter()
 
 const files = ref([])
@@ -537,17 +535,15 @@ async function doDelete() {
 
 <style scoped>
 .home {
+  --page-gutter: 20px;
   position: relative;
   display: flex; flex-direction: column;
   height: 100%; background: var(--bg);
   overflow: hidden;
 }
 
-/* ── Backgrounds ── */
-.fm-bg {
-  position: absolute; inset: 0; pointer-events: none;
-  background: var(--bg);
-}
+/* The embedded file-manager inherits the shell background and uses the same
+   20px horizontal gutter as top-level Nervus pages. */
 
 /* ── Header ── */
 .fm-hdr {
@@ -579,7 +575,7 @@ async function doDelete() {
 /* ── Search ── */
 .fm-search-bar {
   position: relative; z-index: 9;
-  padding: 10px 16px;
+  padding: 10px var(--page-gutter);
   background: var(--bg-blur); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
@@ -600,7 +596,7 @@ async function doDelete() {
 /* ── Feed ── */
 .fm-feed {
   flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding: 12px 22px 12px 14px;
+  padding: 12px var(--page-gutter);
   display: flex; flex-direction: column; gap: 10px;
   position: relative; z-index: 1;
 }
@@ -780,7 +776,7 @@ async function doDelete() {
 /* ── Bottom input ── */
 .fm-inp {
   position: relative; z-index: 10;
-  bottom: 16px; margin: 0 16px 16px;
+  bottom: 16px; margin: 0 var(--page-gutter) 16px;
   height: 50px;
   background: var(--s2); border: 1px solid var(--border2);
   border-radius: 25px;

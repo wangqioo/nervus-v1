@@ -10,6 +10,13 @@ class MainViewController: CAPBridgeViewController {
         if let wv = bridge?.webView {
             originalNavDelegate = wv.navigationDelegate
             wv.navigationDelegate = self
+            wv.clipsToBounds = true
+            wv.isOpaque = false
+            wv.backgroundColor = .clear
+            wv.scrollView.clipsToBounds = true
+            wv.scrollView.bounces = false
+            wv.scrollView.alwaysBounceHorizontal = false
+            wv.scrollView.contentInsetAdjustmentBehavior = .never
         }
     }
 

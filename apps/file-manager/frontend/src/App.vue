@@ -197,6 +197,8 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('resize', u
   position: fixed;
   inset: 0;
   overflow: hidden;
+  clip-path: inset(0);
+  -webkit-clip-path: inset(0);
   background: var(--bg);
 }
 
@@ -287,6 +289,8 @@ body {
   position: absolute; inset: 0;
   border-radius: 52px;
   overflow: hidden;
+  clip-path: inset(0);
+  -webkit-clip-path: inset(0);
 }
 
 /* Home indicator */
