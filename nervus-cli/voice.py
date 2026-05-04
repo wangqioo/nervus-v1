@@ -1,194 +1,280 @@
-"""讯飞实时语音识别 — WebSocket API"""
+"""
+语音录音 + STT 模块
+直接复用 voice-keyboard 项目（github.com/wangqioo/voice-keyboard）的 STT 架构，
+支持多 provider：xunfei / aliyun / volcengine / zhipuai / openai
+
+录音使用 sounddevice（比 pyaudio 更简洁），
+讯飞等 WebSocket 类 provider 使用 websocket-client + threading（非 asyncio）。
+"""
 from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
-import hmac
 import json
 import logging
-import os
-import struct
+import threading
 import time
-from datetime import datetime
 from typing import Callable
-from urllib.parse import urlencode, urlunparse
 
-import pyaudio
-import websockets
+import sounddevice as sd
 
 import config
 
 logger = logging.getLogger("nervus.cli.voice")
 
-# 讯飞实时语音识别 WebSocket 地址
-XUNFEI_WSS = "wss://iat-api.xfyun.cn/v2/iat"
-
-# 音频参数
-CHUNK     = 1280    # 每帧字节数（16kHz 16bit mono，40ms）
-FORMAT    = pyaudio.paInt16
-CHANNELS  = 1
-RATE      = 16000
-MAX_SECS  = 60      # 最长录音时间
+SAMPLE_RATE = 16000
+CHUNK_SIZE  = 1024
 
 
-def _build_auth_url() -> str:
-    """生成带鉴权的 WebSocket URL"""
-    now = datetime.utcnow()
-    date = now.strftime("%a, %d %b %Y %H:%M:%S GMT")
-    host = "iat-api.xfyun.cn"
-    path = "/v2/iat"
+# ── STT 多 provider 实现（来自 voice-keyboard/agent/stt.py）──────────────
 
-    signature_origin = f"host: {host}\ndate: {date}\nGET {path} HTTP/1.1"
-    signature = base64.b64encode(
-        hmac.new(
-            config.XUNFEI_SECRET.encode(),
-            signature_origin.encode(),
-            digestmod=hashlib.sha256,
-        ).digest()
-    ).decode()
+import io, wave
 
-    auth = base64.b64encode(
-        f'api_key="{config.XUNFEI_API_KEY}", algorithm="hmac-sha256", '
-        f'headers="host date request-line", signature="{signature}"'.encode()
-    ).decode()
-
-    params = urlencode({"authorization": auth, "date": date, "host": host})
-    return f"{XUNFEI_WSS}?{params}"
+def _pcm_to_wav(pcm: bytes) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SAMPLE_RATE)
+        w.writeframes(pcm)
+    return buf.getvalue()
 
 
-def _frame_params(is_first: bool, is_last: bool, audio_b64: str) -> dict:
-    """构造讯飞帧格式"""
-    frame: dict = {"data": {"status": 1, "format": "audio/L16;rate=16000",
-                             "encoding": "raw", "audio": audio_b64}}
-    if is_first:
-        frame["common"] = {"app_id": config.XUNFEI_APP_ID}
-        frame["business"] = {
-            "language": "zh_cn", "domain": "iat",
-            "accent": "mandarin", "dwa": "wpgs",  # 动态修正
-            "pd": "game", "ptt": 0,
-        }
-        frame["data"]["status"] = 0
-    if is_last:
-        frame["data"]["status"] = 2
-    return frame
+class _XunfeiSTT:
+    _HOST = "iat-api.xfyun.cn"
+    _PATH = "/v2/iat"
 
+    def __init__(self):
+        try:
+            import websocket as _ws
+            self._ws = _ws
+        except ImportError:
+            raise ImportError("pip install websocket-client")
+        self._app_id     = config.XUNFEI_APP_ID
+        self._api_key    = config.XUNFEI_API_KEY
+        self._api_secret = config.XUNFEI_SECRET
+
+    def _build_url(self) -> str:
+        import hashlib, hmac as _hmac
+        from datetime import datetime, timezone
+        from urllib.parse import urlencode
+        date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        sig_origin = f"host: {self._HOST}\ndate: {date}\nGET {self._PATH} HTTP/1.1"
+        sig = base64.b64encode(
+            _hmac.new(self._api_secret.encode(), sig_origin.encode(), hashlib.sha256).digest()
+        ).decode()
+        auth = base64.b64encode(
+            f'api_key="{self._api_key}", algorithm="hmac-sha256", '
+            f'headers="host date request-line", signature="{sig}"'.encode()
+        ).decode()
+        return f"wss://{self._HOST}{self._PATH}?" + urlencode({
+            "authorization": auth, "date": date, "host": self._HOST,
+        })
+
+    def transcribe(self, pcm: bytes) -> str:
+        CHUNK  = 1280
+        chunks = [pcm[i:i + CHUNK] for i in range(0, len(pcm), CHUNK)]
+        segments: dict[int, str] = {}
+        err  = [None]
+        done = threading.Event()
+
+        def on_open(ws):
+            def _send():
+                n = len(chunks)
+                for idx, chunk in enumerate(chunks):
+                    status = 0 if idx == 0 else (2 if idx == n - 1 else 1)
+                    frame: dict = {"data": {
+                        "status":   status,
+                        "format":   "audio/L16;rate=16000",
+                        "encoding": "raw",
+                        "audio":    base64.b64encode(chunk).decode(),
+                    }}
+                    if idx == 0:
+                        frame["common"]   = {"app_id": self._app_id}
+                        frame["business"] = {
+                            "language": "zh_cn",
+                            "domain":   "iat",
+                            "accent":   "mandarin",
+                            "ptt":      1,
+                            "nunum":    1,
+                            "dwa":      "wpgs",
+                        }
+                    ws.send(json.dumps(frame))
+                    time.sleep(0.005)
+                if n == 1:
+                    ws.send(json.dumps({"data": {
+                        "status": 2, "format": "audio/L16;rate=16000",
+                        "encoding": "raw", "audio": "",
+                    }}))
+            threading.Thread(target=_send, daemon=True).start()
+
+        def on_message(ws, msg):
+            data   = json.loads(msg)
+            code   = data.get("code", -1)
+            if code != 0:
+                err[0] = f"讯飞 code={code}: {data.get('message', '')}"
+                ws.close(); return
+            body   = data.get("data", {})
+            result = body.get("result", {})
+            pgs    = result.get("pgs", "apd")
+            rg     = result.get("rg", [])
+            sn     = result.get("sn", 0)
+            text   = "".join(
+                cw.get("w", "")
+                for w in result.get("ws", [])
+                for cw in w.get("cw", [])
+            )
+            if pgs == "rpl" and len(rg) >= 2:
+                for i in range(rg[0], rg[1] + 1):
+                    segments.pop(i, None)
+            segments[sn] = text
+            if body.get("status") == 2:
+                ws.close(); done.set()
+
+        def on_error(ws, e):
+            err[0] = str(e); done.set()
+
+        def on_close(ws, *_):
+            done.set()
+
+        app = self._ws.WebSocketApp(
+            self._build_url(),
+            on_open=on_open, on_message=on_message,
+            on_error=on_error, on_close=on_close,
+        )
+        threading.Thread(target=app.run_forever, daemon=True).start()
+        done.wait(timeout=15)
+        if err[0]:
+            raise RuntimeError(err[0])
+        return "".join(segments[k] for k in sorted(segments)).strip()
+
+
+class _AliyunSTT:
+    """阿里云 NLS 一句话识别（REST）"""
+    _TOKEN_URL = "https://nls-gateway.{region}.aliyuncs.com/token"
+    _ASR_URL   = "https://nls-gateway.{region}.aliyuncs.com/stream/v1/asr"
+
+    def __init__(self):
+        import requests as _req
+        self._req    = _req
+        self._key_id = config.ALIYUN_ACCESS_KEY_ID
+        self._secret = config.ALIYUN_ACCESS_KEY_SECRET
+        self._app_key= config.ALIYUN_APP_KEY
+        self._region = getattr(config, "ALIYUN_REGION", "cn-shanghai")
+        self._token  = None
+        self._expiry = 0.0
+
+    def _get_token(self) -> str:
+        if self._token and time.time() < self._expiry - 60:
+            return self._token
+        resp = self._req.post(
+            self._TOKEN_URL.format(region=self._region),
+            json={"AccessKeyId": self._key_id, "AccessKeySecret": self._secret},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        self._token  = data["Token"]["Id"]
+        self._expiry = float(data["Token"]["ExpireTime"])
+        return self._token
+
+    def transcribe(self, pcm: bytes) -> str:
+        wav  = _pcm_to_wav(pcm)
+        resp = self._req.post(
+            self._ASR_URL.format(region=self._region),
+            params={"appkey": self._app_key, "format": "wav",
+                    "sample_rate": SAMPLE_RATE,
+                    "enable_punctuation_prediction": "true",
+                    "enable_inverse_text_normalization": "true"},
+            headers={"X-NLS-Token": self._get_token(),
+                     "Content-Type": "application/octet-stream"},
+            data=wav, timeout=15,
+        )
+        resp.raise_for_status()
+        result = resp.json()
+        if result.get("status") == 20000000:
+            return result.get("result", "").strip()
+        raise RuntimeError(f"阿里云 NLS 错误: {result.get('message', result)}")
+
+
+class _MockSTT:
+    """未配置时的占位，避免崩溃"""
+    def transcribe(self, pcm: bytes) -> str:
+        return "[未配置 STT provider，请在 .env 中填写 XUNFEI 或 ALIYUN 配置]"
+
+
+def _build_stt():
+    """根据 config 选择 STT provider"""
+    provider = getattr(config, "STT_PROVIDER", "").strip()
+    if not provider:
+        # 自动检测：有讯飞 key 用讯飞，有阿里云 key 用阿里云
+        if config.XUNFEI_APP_ID:
+            provider = "xunfei"
+        elif getattr(config, "ALIYUN_APP_KEY", ""):
+            provider = "aliyun"
+    if provider == "xunfei":
+        return _XunfeiSTT()
+    if provider == "aliyun":
+        return _AliyunSTT()
+    return _MockSTT()
+
+
+# ── 录音器 ────────────────────────────────────────────────────────────────────
 
 class VoiceRecorder:
     """
-    按住说话录音 + 讯飞实时 ASR。
-    用法：
-        async for text in recorder.listen():
-            print(text)   # 中间结果
-    最终结果在 listen() 返回后通过 result 属性取得。
+    按住说话录音 + 异步 STT。
+    start() 开始录音，stop() 结束录音并触发识别。
+    结果通过 listen() 协程返回。
     """
 
     def __init__(self):
-        self.result = ""
-        self._recording = False
-        self._pa: pyaudio.PyAudio | None = None
-        self._stream = None
+        self._stt         = _build_stt()
+        self._recording   = False
+        self._buf: list[bytes] = []
+        self._stream      = None
+        self.result       = ""
 
     def start(self):
         self._recording = True
-        self._pa = pyaudio.PyAudio()
-        self._stream = self._pa.open(
-            format=FORMAT, channels=CHANNELS,
-            rate=RATE, input=True,
-            frames_per_buffer=CHUNK,
+        self._buf = []
+        self._stream = sd.RawInputStream(
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            dtype="int16",
+            blocksize=CHUNK_SIZE,
+            callback=self._cb,
         )
+        self._stream.start()
 
     def stop(self):
         self._recording = False
-
-    def _cleanup(self):
         if self._stream:
-            self._stream.stop_stream()
-            self._stream.close()
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
             self._stream = None
-        if self._pa:
-            self._pa.terminate()
-            self._pa = None
+
+    def _cb(self, indata, frames, time_info, status):
+        if self._recording:
+            self._buf.append(bytes(indata))
 
     async def listen(self, on_partial: Callable[[str], None] | None = None) -> str:
-        """
-        开始录音并实时返回 ASR 结果。
-        录音结束（调用 stop() 或超时）后返回最终识别文本。
-        """
-        if not config.XUNFEI_APP_ID:
-            # 没有配置讯飞，返回模拟结果（开发调试用）
-            await asyncio.sleep(0.5)
-            return "[未配置讯飞 ASR，请设置 XUNFEI_APP_ID]"
+        """录音结束后调用，在线程池里跑 STT，不阻塞事件循环。"""
+        pcm = b"".join(self._buf)
+        self._buf = []
 
-        url = _build_auth_url()
-        self.result = ""
-        frames: list[bytes] = []
+        if len(pcm) < SAMPLE_RATE * 2 * 0.3:
+            return ""
 
-        # 读取音频帧（在线程池里，不阻塞事件循环）
         loop = asyncio.get_event_loop()
-
-        async def _read_audio():
-            start = time.time()
-            while self._recording and time.time() - start < MAX_SECS:
-                data = await loop.run_in_executor(
-                    None, self._stream.read, CHUNK, False
-                )
-                frames.append(data)
-                await asyncio.sleep(0)
-
-        read_task = asyncio.ensure_future(_read_audio())
-
         try:
-            async with websockets.connect(url) as ws:
-                send_idx = 0
-
-                async def _send_loop():
-                    nonlocal send_idx
-                    while self._recording or send_idx < len(frames):
-                        if send_idx < len(frames):
-                            chunk = frames[send_idx]
-                            b64 = base64.b64encode(chunk).decode()
-                            is_first = send_idx == 0
-                            is_last  = not self._recording and send_idx == len(frames) - 1
-                            await ws.send(json.dumps(_frame_params(is_first, is_last, b64)))
-                            send_idx += 1
-                        else:
-                            await asyncio.sleep(0.04)
-
-                send_task = asyncio.ensure_future(_send_loop())
-
-                # 接收 ASR 结果
-                async for raw in ws:
-                    msg = json.loads(raw)
-                    if msg.get("code") != 0:
-                        logger.warning("讯飞 ASR 错误: %s", msg.get("message"))
-                        break
-                    data = msg.get("data", {})
-                    words = ""
-                    for item in data.get("result", {}).get("ws", []):
-                        for cw in item.get("cw", []):
-                            words += cw.get("w", "")
-                    if words:
-                        # pgs=rpl 时替换，否则追加
-                        pgs = data.get("result", {}).get("pgs", "")
-                        if pgs == "rpl":
-                            rg = data.get("result", {}).get("rg", [0, 0])
-                            parts = list(self.result)
-                            parts[rg[0]:rg[1]+1] = list(words)
-                            self.result = "".join(parts)
-                        else:
-                            self.result += words
-                        if on_partial:
-                            on_partial(self.result)
-                    if data.get("status") == 2:
-                        break
-
-                send_task.cancel()
+            text = await loop.run_in_executor(None, self._stt.transcribe, pcm)
         except Exception as e:
-            logger.error("讯飞 ASR 失败: %s", e)
-            self.result = ""
-        finally:
-            await read_task
-            self._cleanup()
+            logger.error("STT 识别失败: %s", e)
+            text = ""
 
-        return self.result
+        self.result = text
+        return text

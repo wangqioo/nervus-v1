@@ -34,10 +34,19 @@ def app_url(app_id: str) -> str:
     port = APP_PORTS.get(app_id, 8090)
     return f"http://{host}:{port}"
 
-# 讯飞 ASR
+# STT provider 选择（xunfei / aliyun / volcengine / openai，留空自动检测）
+STT_PROVIDER = os.getenv("STT_PROVIDER", "")
+
+# 讯飞 ASR（xunfei provider）
 XUNFEI_APP_ID  = os.getenv("XUNFEI_APP_ID", "")
 XUNFEI_API_KEY = os.getenv("XUNFEI_API_KEY", "")
 XUNFEI_SECRET  = os.getenv("XUNFEI_SECRET", "")
+
+# 阿里云 NLS（aliyun provider）
+ALIYUN_ACCESS_KEY_ID     = os.getenv("ALIYUN_ACCESS_KEY_ID", "")
+ALIYUN_ACCESS_KEY_SECRET = os.getenv("ALIYUN_ACCESS_KEY_SECRET", "")
+ALIYUN_APP_KEY           = os.getenv("ALIYUN_APP_KEY", "")
+ALIYUN_REGION            = os.getenv("ALIYUN_REGION", "cn-shanghai")
 
 # 语音按钮 GPIO（H618 上用）
 VOICE_GPIO_PIN = int(os.getenv("VOICE_GPIO_PIN", "0"))
