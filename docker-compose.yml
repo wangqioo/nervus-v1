@@ -147,7 +147,6 @@ services:
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
-      WHISPER_URL: http://nervus-whisper:8081
     healthcheck:
       interval: 30s
       retries: 5
@@ -398,7 +397,6 @@ services:
     container_name: nervus-app-video
     depends_on:
     - arbor-core
-    - whisper
     entrypoint: []
     environment:
       APP_PORT: 8009
@@ -407,7 +405,6 @@ services:
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
-      WHISPER_URL: http://nervus-whisper:8081
     healthcheck:
       interval: 30s
       retries: 5
@@ -475,7 +472,6 @@ services:
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
-      WHISPER_URL: http://nervus-whisper:8081
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -498,39 +494,6 @@ services:
     - ./core/arbor:/srv/arbor:ro      # hot-reload: restart arbor-core to pick up changes
     - ./config:/app/config:ro         # models.json, flows/, public.json
     image: nervus-arbor-core:latest
-  caddy:
-    container_name: nervus-caddy
-    depends_on:
-    - arbor-core
-    entrypoint:
-    - caddy
-    - run
-    - --config
-    - /etc/caddy/Caddyfile
-    - --adapter
-    - caddyfile
-    healthcheck:
-      interval: 30s
-      retries: 3
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:2019/config/
-      timeout: 10s
-    image: nervus-caddy:latest
-    networks:
-      nervus-net: null
-    ports:
-    - 80:80
-    - 443:443
-    - 8900:8900
-    restart: unless-stopped
-    volumes:
-    - ./core/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-    - caddy-data:/data
-    - caddy-certs:/config
-    - ./frontend:/srv/frontend:ro
   nats:
     command:
     - -c
@@ -669,38 +632,7 @@ services:
     restart: unless-stopped
     volumes:
     - ./apps/model-manager/index.html:/app/index.html:ro   # hot-reload: no rebuild needed
-  whisper:
-    build:
-      context: ./core/whisper
-      dockerfile: Dockerfile
-    container_name: nervus-whisper
-    entrypoint: []
-    environment:
-      HF_ENDPOINT: https://hf-mirror.com
-      WHISPER_COMPUTE_TYPE: int8
-      WHISPER_DEVICE: cpu
-      WHISPER_MODEL: small
-    healthcheck:
-      interval: 30s
-      retries: 5
-      start_period: 60s
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:8081/health
-      timeout: 10s
-    networks:
-      nervus-net: null
-    ports:
-    - 8081:8081
-    restart: unless-stopped
-    volumes:
-    - whisper-models:/models
-    image: nervus-whisper:latest
 volumes:
-  caddy-certs: null
-  caddy-data: null
   calendar-data: null
   nats-data: null
   notes-data: null
@@ -711,5 +643,4 @@ volumes:
   rss-data: null
   status-sense-data: null
   video-data: null
-  whisper-models: null
   files-data: null
