@@ -186,7 +186,54 @@ python app.py
 
 ---
 
-## 六、后续路线图
+## 六、操作系统选型
+
+### 首选：Armbian Bookworm（Debian 12）Server 版
+
+```
+https://www.armbian.com/orange-pi-zero3/
+→ 选 Minimal / CLI（不带桌面）
+→ 基于 Debian 12 Bookworm
+```
+
+| 维度 | 说明 |
+|------|------|
+| H618 硬件支持 | Armbian 专门维护 H618 内核补丁，GPIO、音频、USB 开箱即用 |
+| 内存占用 | Minimal 镜像空闲内存约 150MB，比官方镜像省 ~100MB |
+| Docker 支持 | 内核 >= 6.1，cgroups v2 完整支持，Docker 装完即用 |
+| 电源管理 | 针对 Cortex-A53 做了 cpufreq 调优，长期运行更稳定 |
+| 社区活跃度 | H618 板子问题在 Armbian 论坛基本都有答案 |
+
+### 不推荐的选项
+
+| 选项 | 原因 |
+|------|------|
+| Orange Pi 官方 OS | 基于旧内核，维护频率低，预装软件冗余 |
+| Ubuntu Desktop | 桌面环境白白吃掉 ~600MB，对无头设备完全没用 |
+| Alpine Linux | musl libc 在 Docker 容器内兼容性问题多，排查麻烦 |
+
+### 装好后的初始化步骤
+
+```bash
+# 1. 禁用不需要的服务（省内存）
+systemctl disable bluetooth avahi-daemon
+systemctl disable apt-daily.timer apt-daily-upgrade.timer
+
+# 2. 安装 Docker
+curl -fsSL https://get.docker.com | sh
+usermod -aG docker $USER
+
+# 3. 安装 nervus-cli 依赖
+apt install python3-pip portaudio19-dev   # sounddevice 需要 portaudio
+
+# 4. 确认麦克风被识别
+apt install alsa-utils
+arecord -l
+```
+
+---
+
+## 七、后续路线图
 
 | 阶段 | 目标 |
 |------|------|
