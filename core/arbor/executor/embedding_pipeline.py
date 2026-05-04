@@ -42,8 +42,7 @@ class EmbeddingPipeline:
     - 通过 ModelService 统一调用本地 embed 接口
     """
 
-    def __init__(self, llama_url: str, db_pool: asyncpg.Pool, model_service=None):
-        self.llama_url = llama_url  # 保留，向后兼容
+    def __init__(self):
         self.db_pool = db_pool
         self._model_service = model_service  # 优先使用 ModelService
         self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=1000)
@@ -113,7 +112,6 @@ class EmbeddingPipeline:
 
                 self._queue.task_done()
 
-                # 速率控制：避免 llama.cpp 过载（约 2 req/s）
                 await asyncio.sleep(0.5)
 
             except Exception as e:
@@ -121,15 +119,12 @@ class EmbeddingPipeline:
                 await asyncio.sleep(1)
 
     async def _generate_embedding(self, text: str) -> list[float]:
-        """生成文本向量，优先通过 ModelService，降级时直连 llama.cpp"""
         if self._model_service is not None:
             return await self._model_service.embed(text[:2000])
 
-        # 降级路径：ModelService 未注入时直连 llama.cpp（向后兼容）
         import httpx
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"{self.llama_url}/v1/embeddings",
                 json={"model": "qwen3.5", "input": text[:2000]},
             )
             resp.raise_for_status()
@@ -159,9 +154,8 @@ class EmbeddingPipeline:
 _pipeline: EmbeddingPipeline | None = None
 
 
-def init_pipeline(llama_url: str, db_pool: asyncpg.Pool, model_service=None) -> EmbeddingPipeline:
+def init_pipeline(db_pool, model_service=None) -> EmbeddingPipeline:
     global _pipeline
-    _pipeline = EmbeddingPipeline(llama_url, db_pool, model_service=model_service)
     return _pipeline
 
 

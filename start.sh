@@ -15,9 +15,9 @@ for i in $(seq 1 30); do
 done
 log "Postgres ready"
 
-# Phase 2: Core services (llama, whisper, arbor)
-log "Starting core services..."
-docker compose up -d llama-cpp whisper arbor-core
+# Phase 2: Arbor Core
+log "Starting Arbor Core..."
+docker compose up -d arbor-core
 
 # Wait for arbor
 for i in $(seq 1 30); do
@@ -32,17 +32,13 @@ docker compose up -d \
   app-calorie-tracker app-meeting-notes app-knowledge-base app-life-memory \
   app-sense app-photo-scanner app-personal-notes app-pdf-extractor \
   app-video-transcriber app-rss-reader app-calendar app-reminder \
-  app-status-sense app-workflow-viewer
+  app-status-sense app-workflow-viewer app-file-manager app-model-manager
 
-# Wait for apps to register (check count reaches expected)
+# Wait for apps to register
 for i in $(seq 1 20); do
-  count=$(curl -sf http://localhost:8090/apps/list 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["count"])' 2>/dev/null || echo 0)
+  count=$(curl -sf http://localhost:8090/apps 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("count", len(d.get("apps",[]))))' 2>/dev/null || echo 0)
   [ "$count" -ge 14 ] && break
   sleep 3
 done
-log "Apps registered: $count/14"
-
-# Phase 4: Caddy (frontend)
-log "Starting Caddy..."
-docker compose up -d caddy
-log "All services started"
+log "Apps registered: $count"
+log "All services started. Run: cd nervus-cli && python app.py"

@@ -1,6 +1,6 @@
 """
 mDNS 服务广播
-在局域网内注册 _nervus._tcp 服务，让 iOS NervusDiscoveryPlugin 能自动发现。
+在局域网内注册 _nervus._tcp 服务，让 nervus-cli 设备发现 能自动发现。
 依赖：zeroconf（pip install zeroconf）
 """
 
@@ -58,7 +58,7 @@ def start_mdns(port: int = 8090, service_name: str = "Nervus") -> bool:
         logger.info(f"mDNS 已广播: {service_name}._nervus._tcp.local. @ {local_ip}:{port}")
         return True
     except Exception as e:
-        logger.warning(f"mDNS 广播失败（非致命，iOS 自动发现不可用）: {e}")
+        logger.warning(f"mDNS 广播失败（非致命，nervus-cli 局域网发现不可用）: {e}")
         return False
 
 

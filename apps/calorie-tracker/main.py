@@ -12,7 +12,6 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import File, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
 
 import sys
 sys.path.insert(0, "/app/nervus-sdk")
@@ -23,11 +22,8 @@ from nervus_sdk.models import Event
 
 nervus = NervusApp("calorie-tracker")
 
-_HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
-@nervus._api.get("/", response_class=HTMLResponse)
 async def index():
-    return HTMLResponse(_HTML)
 
 DB_PATH = os.getenv("DB_PATH", "/data/calorie-tracker.db")
 PHOTO_DIR = "/data/meal_photos"

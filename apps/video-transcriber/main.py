@@ -1,6 +1,6 @@
 """
 Video Transcriber App — 视频转录器
-提取视频音轨并调用 Whisper 服务转写，发布到知识总线
+提取视频音轨并调用云端 ASR 转写，发布到知识总线
 支持：mp4, mkv, mov, avi, webm
 """
 
@@ -22,7 +22,6 @@ from nervus_sdk.models import Event
 
 nervus = NervusApp("video-transcriber")
 
-WHISPER_URL = os.getenv("WHISPER_URL", "http://whisper:8003")
 DB_PATH = os.getenv("DB_PATH", "/data/video-transcriber.db")
 
 SUPPORTED_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"}
@@ -77,7 +76,7 @@ async def _extract_audio(video_path: str, tmp_dir: str) -> str:
         "ffmpeg", "-i", video_path,
         "-vn",                   # 不要视频流
         "-acodec", "pcm_s16le",  # PCM 16-bit
-        "-ar", "16000",          # 16kHz（Whisper 最佳采样率）
+        "-ar", "16000",          # 16kHz（ASR 标准采样率）
         "-ac", "1",              # 单声道
         "-y", audio_path
     ]
@@ -102,17 +101,13 @@ async def _get_video_duration(video_path: str) -> float:
         return 0.0
 
 
-async def _transcribe_with_whisper(audio_path: str) -> tuple[str, str]:
-    """调用 Whisper 服务转写音频，返回 (transcript, language)"""
-    async with httpx.AsyncClient(timeout=600.0) as client:
-        with open(audio_path, "rb") as f:
-            resp = await client.post(
-                f"{WHISPER_URL}/transcribe",
-                files={"file": ("audio.wav", f, "audio/wav")},
-            )
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("text", ""), data.get("language", "unknown")
+async def _transcribe_with_cloud_asr(audio_path: str) -> tuple[str, str]:
+    """
+    调用云端 ASR 转写音频，返回 (transcript, language)。
+    TODO: 集成讯飞云端 ASR，参考 nervus-cli/voice.py 中的 _XunfeiSTT 实现。
+    """
+    # TODO: 读取 audio_path，调用讯飞 WebSocket ASR，返回 (转写文本, "zh")
+    return ("[ASR 待集成]", "zh")
 
 
 async def _transcribe_video(job_id: str, video_path: str, title: Optional[str]) -> dict:
@@ -127,8 +122,8 @@ async def _transcribe_video(job_id: str, video_path: str, title: Optional[str]) 
         # 提取音轨
         audio_path = await _extract_audio(video_path, tmp_dir)
 
-        # 调用 Whisper
-        transcript, language = await _transcribe_with_whisper(audio_path)
+        # 调用云端 ASR
+        transcript, language = await _transcribe_with_cloud_asr(audio_path)
 
         detected_title = title or _guess_title(video_path)
         completed_at = datetime.utcnow().isoformat()

@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_service.set_model_service(app.state.model_service)
 
     model_svc = app.state.model_service
-    embedding_pipeline = init_pipeline(settings.llm_url, postgres_client.pool, model_svc)
+    embedding_pipeline = init_pipeline(postgres_client.pool, model_svc)
     await embedding_pipeline.start()
     app.state.embedding_pipeline = embedding_pipeline
 

@@ -50,8 +50,6 @@ class AppConfig(BaseModel):
     nats_url: str = "nats://localhost:4222"
     redis_url: str = "redis://localhost:6379"
     postgres_url: str = "postgresql://nervus:nervus_secret@localhost:5432/nervus"
-    llama_url: str = "http://localhost:8080"
-    whisper_url: str = "http://localhost:8081"
     arbor_url: str = "http://localhost:8090"
 
     @classmethod
@@ -66,8 +64,6 @@ class AppConfig(BaseModel):
             nats_url=os.getenv("NATS_URL", "nats://localhost:4222"),
             redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
             postgres_url=os.getenv("POSTGRES_URL", "postgresql://nervus:nervus_secret@localhost:5432/nervus"),
-            llama_url=os.getenv("LLAMA_URL", "http://localhost:8080"),
-            whisper_url=os.getenv("WHISPER_URL", "http://localhost:8081"),
             arbor_url=os.getenv("ARBOR_URL", "http://localhost:8090"),
         )
 

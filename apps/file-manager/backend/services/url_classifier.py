@@ -487,7 +487,7 @@ async def _ai_summarize_wechat(title: str, author: str, pub_time: str, content: 
             resp = await client.post(
                 f"{arbor_url}/models/chat",
                 json={
-                    "model": "qwen3.5",
+                    "model": "",
                     "messages": messages,
                     "max_tokens": 512,
                 },

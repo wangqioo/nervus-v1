@@ -22,7 +22,7 @@ from nervus_sdk.models import Event
 nervus = NervusApp("meeting-notes")
 
 DB_PATH = os.getenv("DB_PATH", "/data/meeting-notes.db")
-WHISPER_URL = os.getenv("WHISPER_URL", "http://localhost:8081")
+XUNFEI_APP_ID = os.getenv("XUNFEI_APP_ID", "")  # 讯飞云端 ASR
 
 
 def init_db():
@@ -64,27 +64,17 @@ def get_db():
 # ── 核心逻辑 ──────────────────────────────────────────────
 
 async def transcribe_audio(audio_path: str) -> dict:
-    """调用 Whisper 服务转写录音"""
-    try:
-        with open(audio_path, "rb") as f:
-            audio_bytes = f.read()
-        import base64
-        b64 = base64.b64encode(audio_bytes).decode()
-        ext = Path(audio_path).suffix.lstrip(".")
+    """
+    云端 ASR 转写录音。
+    TODO: 集成讯飞云端 ASR，参考 nervus-cli/voice.py 中的 _XunfeiSTT 实现。
+    """
+    # TODO: 读取音频文件，调用讯飞 WebSocket ASR，返回 {"text": "...", "segments": [], "duration": 0}
+    return {"text": "[ASR 待集成]", "segments": [], "duration": 0}
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{WHISPER_URL}/transcribe/base64",
-                json={"audio_b64": b64, "format": ext or "wav", "language": "zh"},
-            )
-            resp.raise_for_status()
-            return resp.json()
-    except Exception as e:
-        return {"text": f"[转写失败: {e}]", "segments": [], "duration": 0}
 
 
 async def generate_meeting_summary(transcript: str, whiteboard_text: str = "") -> dict:
-    """用 llama.cpp 生成结构化会议纪要"""
+    """用云端 LLM 生成结构化会议纪要"""
     extra = f"\n\n白板内容：\n{whiteboard_text}" if whiteboard_text else ""
     prompt = f"""请根据以下会议录音转写内容，生成结构化会议纪要（JSON格式）：
 
@@ -118,7 +108,7 @@ async def generate_meeting_summary(transcript: str, whiteboard_text: str = "") -
 
 
 async def ocr_whiteboard(photo_path: str) -> str:
-    """用 llama.cpp 视觉模型 OCR 白板内容"""
+    """用云端视觉 LLM OCR 白板内容"""
     prompt = "请识别白板上的所有文字内容，保持原有格式，包括标题、要点、图表说明等。只返回识别到的文字，不要其他解释。"
     try:
         return await nervus.llm.vision(photo_path, prompt)

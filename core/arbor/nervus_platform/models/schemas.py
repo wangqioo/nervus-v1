@@ -15,7 +15,7 @@ class ModelStatus(str, Enum):
 class ModelInfo(BaseModel):
     id: str
     name: str
-    provider: str = "llama.cpp"
+    provider: str = "openai_compat"
     vision: bool = False
     context_length: int = 4096
     status: ModelStatus = ModelStatus.unknown
@@ -24,7 +24,7 @@ class ModelInfo(BaseModel):
 class ModelConfig(BaseModel):
     id: str
     name: str
-    provider: str = "llama.cpp"   # "llama.cpp" | "openai_compat" | "anthropic"
+    provider: str = "openai_compat"   # "llama.cpp" | "openai_compat" | "anthropic"
     endpoint: str = ""            # cloud endpoint; empty = use llm_url
     api_key_env: str = ""         # env var name holding the API key
     vision: bool = False

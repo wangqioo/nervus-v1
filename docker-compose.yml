@@ -17,7 +17,6 @@ services:
       APP_PORT: 8011
       ARBOR_URL: http://nervus-arbor:8090
       DB_PATH: /data/calendar.db
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -50,7 +49,6 @@ services:
     environment:
       APP_PORT: 8001
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -81,7 +79,6 @@ services:
     environment:
       APP_PORT: 8003
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -112,7 +109,6 @@ services:
     environment:
       APP_PORT: 8004
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -143,7 +139,6 @@ services:
     environment:
       APP_PORT: 8002
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -240,7 +235,6 @@ services:
     environment:
       APP_PORT: 8006
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       REDIS_URL: redis://nervus-redis:6379
@@ -467,7 +461,6 @@ services:
         condition: service_healthy
     entrypoint: []
     environment:
-      LLAMA_URL: http://172.20.0.1:8080
       LOG_LEVEL: info
       NATS_URL: nats://nervus-nats:4222
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
@@ -578,7 +571,6 @@ services:
       REDIS_URL: redis://nervus-redis:6379
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50}
       LINKBOX_API_URL: ${LINKBOX_API_URL:-}
       LINKBOX_API_KEY: ${LINKBOX_API_KEY:-}

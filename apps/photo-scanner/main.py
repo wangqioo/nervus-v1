@@ -250,7 +250,7 @@ async def get_state():
 @nervus._api.post("/upload")
 async def upload_photo(file: UploadFile = File(...)):
     """
-    接收手机上传的照片（iOS Capacitor 桥接）
+    接收手机上传的照片（CLI 或 HTTP 客户端上传）
     保存到 /photos 目录并立即触发分类
     """
     import aiofiles

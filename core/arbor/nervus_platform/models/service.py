@@ -20,8 +20,8 @@ class ModelService:
     def __init__(self, llm_url: str, models_config_path: str = "") -> None:
         self._llm_url = llm_url.rstrip("/")
         self._configs: dict[str, ModelConfig] = {}
-        self._default_text = "qwen3.5"
-        self._default_vision = "qwen3.5"
+        self._default_text = "deepseek-chat"
+        self._default_vision = "deepseek-chat"
         self._load_config(models_config_path)
 
     # ── config loading ────────────────────────────────────────────────────────
@@ -33,30 +33,16 @@ class ModelService:
             data = json.loads(Path(path).read_text())
         except Exception as exc:
             logger.warning("models config not loaded (%s): %s", path, exc)
-            self._ensure_default_local()
-            return
+                return
 
-        self._default_text = data.get("default_text", "qwen3.5")
-        self._default_vision = data.get("default_vision", "qwen3.5")
+        self._default_text = data.get("default_text", "deepseek-chat")
+        self._default_vision = data.get("default_vision", "deepseek-chat")
 
         for raw in data.get("models", []) + data.get("cloud", []):
             cfg = ModelConfig.model_validate(raw)
             self._configs[cfg.id] = cfg
 
-        self._ensure_default_local()
         logger.info("models loaded: %s", list(self._configs.keys()))
-
-    def _ensure_default_local(self) -> None:
-        if "qwen3.5" not in self._configs:
-            self._configs["qwen3.5"] = ModelConfig(
-                id="qwen3.5",
-                name="Qwen 3.5 4B（本地）",
-                provider="llama.cpp",
-                vision=True,
-                context_length=4096,
-            )
-
-    # ── public API ────────────────────────────────────────────────────────────
 
     def list_models(self) -> list[ModelInfo]:
         return [

@@ -53,7 +53,7 @@ async def store_item(
 
 
 async def generate_summary(content: str, type: str = "article") -> str:
-    """用 llama.cpp 生成内容摘要"""
+    """用云端 LLM 生成内容摘要"""
     if len(content) < 200:
         return content
 

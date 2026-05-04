@@ -55,9 +55,6 @@ class SemanticRouter:
     def set_model_service(self, svc: ModelService) -> None:
         self._model_service = svc
 
-    # 向后兼容：旧代码通过 set_llama_url 传入 URL，忽略即可（已由 ModelService 管理）
-    def set_llama_url(self, url: str) -> None:
-        pass
 
     async def route(self, subject: str, event_data: dict) -> bool:
         """

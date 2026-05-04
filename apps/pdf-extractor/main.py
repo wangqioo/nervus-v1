@@ -197,7 +197,7 @@ async def extract_api(body: dict):
 
 @nervus._api.post("/upload")
 async def upload_pdf():
-    """通过 multipart 上传 PDF（iOS 等客户端使用）"""
+    """通过 multipart 上传 PDF（HTTP 客户端上传）"""
     from fastapi import Request, UploadFile, File
     # 注：实际 multipart 处理需要在路由签名中声明 UploadFile
     return {"error": "请使用 /extract 接口，提供 base64 字段"}

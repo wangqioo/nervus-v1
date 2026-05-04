@@ -22,6 +22,6 @@ class Settings:
             nats_url=os.getenv("NATS_URL", "nats://localhost:4222"),
             config_dir=os.getenv("NERVUS_CONFIG_DIR", "/app/config"),
             app_port=int(os.getenv("APP_PORT", os.getenv("ARBOR_PORT", "8090"))),
-            llm_url=os.getenv("LLAMA_URL", "http://nervus-llama:8080"),
+            llm_url=os.getenv("LLAMA_URL", ""),
             flows_dir=os.getenv("NERVUS_FLOWS_DIR", "/app/config/flows"),
         )

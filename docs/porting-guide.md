@@ -9,10 +9,8 @@
 ## 1. 架构一眼看懂
 
 ```
-iPhone / Browser
     │
     ▼ HTTP
-Caddy (:443 / :8900)
     │
     ├─ /api/{app-id}/*  ──►  nervus-app-{id}:{port}   （你的 App）
     ├─ /files/*          ──►  nervus-app-files:8015     （文件管理器）
@@ -61,7 +59,6 @@ Caddy (:443 / :8900)
 
 1. 创建 `apps/{app-id}/` 目录（`main.py` + `manifest.json` + `Dockerfile` + `requirements.txt`）
 2. 在 `docker-compose.yml` 添加服务块
-3. 在 `core/caddy/Caddyfile` 两处路由块添加路由（HTTPS + HTTP:8900）
 4. 构建并部署
 
 ---
@@ -248,7 +245,6 @@ CMD ["python", "main.py"]
       REDIS_URL: redis://nervus-redis:6379
       POSTGRES_URL: postgresql://nervus:nervus_secret@nervus-postgres:5432/nervus?sslmode=disable
       ARBOR_URL: http://nervus-arbor:8090
-      LLAMA_URL: http://172.20.0.1:8080
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:{PORT}/health"]
       interval: 30s
@@ -265,32 +261,6 @@ CMD ["python", "main.py"]
 > ```
 >
 > 改完 HTML 后只需 `docker compose restart app-{app-id}`，无需重建镜像。
-
----
-
-## 8. Caddyfile 路由（两处都要加）
-
-文件位置：`core/caddy/Caddyfile`。
-
-Caddyfile 有两个块（HTTPS `nervus.local` 和 HTTP `:8900`），**两处都要加**，且必须放在 `handle /api/*` 之前：
-
-```caddyfile
-    handle /api/{app-id} {
-        redir /api/{app-id}/ 301
-    }
-    handle /api/{app-id}/* {
-        uri strip_prefix /api/{app-id}
-        reverse_proxy nervus-app-{short-name}:{PORT}
-    }
-```
-
-改完后重载 Caddy：
-
-```bash
-docker restart nervus-caddy
-# 或零停机重载
-make reload-caddy
-```
 
 ---
 
@@ -312,8 +282,6 @@ docker compose restart app-{app-id}
 # 强制重建容器（docker-compose.yml 配置改了，如 volume mount）
 docker compose up -d --no-deps --force-recreate app-{app-id}
 
-# 重载 Caddy
-docker restart nervus-caddy
 
 # 验证
 curl -s http://localhost:8900/api/{app-id}/health
@@ -418,23 +386,6 @@ async with httpx.AsyncClient() as client:
 
 ---
 
-## 11. 前端开发规范（iframe 运行环境）
-
-所有 App 前端运行在父页面的 iframe 内。**必须遵守：**
-
-| 禁止 | 替代方案 |
-|------|---------|
-| `element.scrollIntoView()` | 操作滚动容器的 `scrollTop` |
-| `window.parent.*` | 不需要，通过 API 通信 |
-| `window.top.*` | 不需要 |
-| `alert()` / `confirm()` | 在页面内显示错误状态 |
-| 硬编码 IP / 端口 | 使用相对路径 `/api/...` |
-| `body` 本身可滚动 | body 固定 100vh，滚动只在明确容器内发生 |
-
-> 详见前端内置开发规范页（从应用列表点击「📐 开发规范」进入，第 13 页）。
-
----
-
 ## 12. 接入 Checklist
 
 ```
@@ -442,12 +393,9 @@ async with httpx.AsyncClient() as client:
 □ 2. main.py 完成，NervusApp("{app-id}") 与 manifest.id 一致
 □ 3. Dockerfile：sdk/python → /app/nervus-sdk，manifest.json → /app/manifest.json
 □ 4. docker-compose.yml 服务块已添加（含 APP_INTERNAL_URL、build.context: .）
-□ 5. Caddyfile 两处路由块（HTTPS + :8900）均已添加
 □ 6. docker compose build app-{app-id}  ← 构建成功
 □ 7. docker compose up -d app-{app-id}  ← 容器已 Up
 □ 8. curl /health 返回 {"status":"ok"}
-□ 9. docker restart nervus-caddy
-□ 10. curl http://localhost:8900/api/{app-id}/health  ← 通过 Caddy 验证
 □ 11. curl http://localhost:8900/api/apps | grep "{app-id}"  ← 已注册到 Arbor
 □ 12. 主要接口手动测试通过
 ```
@@ -465,8 +413,6 @@ Qwen 3.5 是推理模型，调用时加 `"chat_template_kwargs": {"enable_thinki
 **Q: SQLite 并发写入报错？**
 `sqlite3.connect(DB_PATH, check_same_thread=False)`，或换用 Postgres（`POSTGRES_URL` 已注入，用 `asyncpg` 连接）。
 
-**Q: Caddyfile 改了但路由不生效？**
-执行 `docker restart nervus-caddy`，查看日志 `docker logs nervus-caddy`。
 
 **Q: 镜像构建失败（pip 超时）？**
 所有 pip 已走清华镜像。仍超时检查网络，或在 requirements.txt 中固定版本号。

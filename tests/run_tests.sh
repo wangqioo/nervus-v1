@@ -32,14 +32,6 @@ run_test() {
 # ── 无需网络的测试 ────────────────────────────
 run_test "ModelService 配置加载" tests/test_model_service.py config
 
-# ── 本地模型测试（需要 llama.cpp 运行）────────
-if curl -sf "${LLAMA_URL:-http://localhost:8080}/health" > /dev/null 2>&1; then
-    run_test "本地模型对话" tests/test_model_service.py local
-    run_test "流式输出" tests/test_model_service.py stream
-else
-    echo ""
-    echo "--- 本地模型测试 [SKIP] --- (llama.cpp 未运行，设置 LLAMA_URL 后重试)"
-fi
 
 # ── 需要 Arbor 运行的测试 ─────────────────────
 if curl -sf "${ARBOR_URL:-http://localhost:8090}/healthz" > /dev/null 2>&1; then
