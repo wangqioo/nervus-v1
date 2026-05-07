@@ -2,21 +2,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from infra import nats_client, redis_client, postgres_client
+from infra import postgres_client
 
 router = APIRouter()
 
 
 @router.get("/health")
 async def health():
-    return {
-        "status": "ok",
-        "services": {
-            "nats": "connected" if nats_client.client else "disconnected",
-            "redis": "connected" if redis_client.client else "disconnected",
-            "postgres": "connected" if postgres_client.pool else "disconnected",
-        },
-    }
+    return {"status": "ok", "services": {"database": "connected" if postgres_client.pool else "disconnected"}}
 
 
 @router.get("/status")
@@ -44,7 +37,7 @@ async def get_execution_logs(limit: int = 20):
         return {"logs": []}
     rows = await postgres_client.pool.fetch(
         "SELECT id, flow_id, trigger_subject, routing_mode, status, duration_ms, created_at "
-        "FROM execution_logs ORDER BY created_at DESC LIMIT $1",
+        "FROM execution_logs ORDER BY created_at DESC LIMIT ?",
         limit,
     )
     return {
@@ -56,7 +49,7 @@ async def get_execution_logs(limit: int = 20):
                 "mode": row["routing_mode"],
                 "status": row["status"],
                 "duration_ms": row["duration_ms"],
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "created_at": row["created_at"] if row["created_at"] else None,
             }
             for row in rows
         ]

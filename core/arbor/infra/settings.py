@@ -1,27 +1,42 @@
+"""
+Arbor Core 配置 — 单进程模式，无外部服务 URL
+"""
+
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass
 class Settings:
-    postgres_url: str
-    redis_url: str
-    nats_url: str
-    config_dir: str
-    app_port: int
-    llm_url: str
-    flows_dir: str
+    """单进程 Arbor Core 配置"""
+
+    # ── 存储路径 ───────────────────────────────────────────────────────
+    config_dir: str = field(default_factory=lambda: os.getenv("CONFIG_DIR", "config"))
+    data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "data"))
+    flows_dir: str = field(default_factory=lambda: os.getenv("FLOWS_DIR", "flows"))
+    db_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "data/nervus.db"))
+
+    # ── 网络 ───────────────────────────────────────────────────────────
+    app_port: int = field(default_factory=lambda: int(os.getenv("APP_PORT", "8090")))
+    llm_url: str = field(default_factory=lambda: os.getenv("LLM_URL", "http://localhost:8080"))
+
+    # ── 旧外部服务 URL（保留以保持兼容，实际不再使用） ──────────────
+    postgres_url: str = ""
+    redis_url: str = ""
+    nats_url: str = ""
+
+    def __post_init__(self) -> None:
+        # 确保目录存在
+        for d in [self.config_dir, self.data_dir, self.flows_dir]:
+            Path(d).mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def from_env(cls) -> "Settings":
-        return cls(
-            postgres_url=os.getenv("POSTGRES_URL", "postgresql://nervus:nervus_secret@localhost:5432/nervus"),
-            redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
-            nats_url=os.getenv("NATS_URL", "nats://localhost:4222"),
-            config_dir=os.getenv("NERVUS_CONFIG_DIR", "/app/config"),
-            app_port=int(os.getenv("APP_PORT", os.getenv("ARBOR_PORT", "8090"))),
-            llm_url=os.getenv("LLAMA_URL", ""),
-            flows_dir=os.getenv("NERVUS_FLOWS_DIR", "/app/config/flows"),
-        )
+        return cls()
+
+
+# 全局配置实例
+settings = Settings()

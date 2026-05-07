@@ -1,57 +1,21 @@
+# SQLite 数据库文件（运行时生成）
+core/arbor/data/
+*.db
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
 .venv/
 venv/
-.env
-*.env.local
 
-# Node / Frontend
-node_modules/
-.pnpm-store/
-.npm/
-
-# Build outputs (keep dist/ in version control for Docker builds)
-# apps/*/frontend/dist/ — intentionally tracked
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Editor
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Docker
-.docker/
-
-# Secrets / keys
-*.pem
-*.key
-secrets/
-
-# Test artifacts
-.pytest_cache/
-coverage/
-htmlcov/
-.coverage
-
-# Memory files (agent session data)
-MEMORY.md
-memory/
-
-# Stale session / scratch files
-project_*.md
-ref_*.md
-feedback_*.md
-
-# macOS
-.DS_Store
+# Environment
+.env

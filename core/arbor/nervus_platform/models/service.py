@@ -33,7 +33,7 @@ class ModelService:
             data = json.loads(Path(path).read_text())
         except Exception as exc:
             logger.warning("models config not loaded (%s): %s", path, exc)
-                return
+            return
 
         self._default_text = data.get("default_text", "deepseek-chat")
         self._default_vision = data.get("default_vision", "deepseek-chat")

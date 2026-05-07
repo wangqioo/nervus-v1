@@ -5,8 +5,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import asyncpg
-
 from .schemas import PlatformEvent
 
 logger = logging.getLogger("nervus.platform.events")
@@ -14,9 +12,9 @@ logger = logging.getLogger("nervus.platform.events")
 
 class EventService:
     def __init__(self) -> None:
-        self._pool: asyncpg.Pool | None = None
+        self._pool: Any = None
 
-    async def init(self, pool: asyncpg.Pool) -> None:
+    async def init(self, pool: Any) -> None:
         self._pool = pool
 
     async def ingest(self, subject: str, payload: dict[str, Any], source_app: str = "system") -> PlatformEvent | None:
@@ -24,11 +22,9 @@ class EventService:
             logger.warning("EventService: no DB pool, skipping persist for %s", subject)
             return None
         row = await self._pool.fetchrow(
-            """
-            INSERT INTO platform_events (subject, payload, source_app)
-            VALUES ($1, $2::jsonb, $3)
-            RETURNING id::text, subject, payload, source_app, created_at
-            """,
+            """INSERT INTO platform_events (subject, payload, source_app)
+               VALUES (?, ?, ?)
+               RETURNING id, subject, payload, source_app, created_at""",
             subject,
             json.dumps(payload),
             source_app,
@@ -48,36 +44,29 @@ class EventService:
         if self._pool is None:
             return []
 
-        conditions = []
-        params: list = []
-        idx = 1
+        conditions: list[str] = []
+        params: list[Any] = []
 
         if subject_prefix:
-            conditions.append(f"subject LIKE ${idx}")
+            conditions.append("subject LIKE ?")
             params.append(f"{subject_prefix}%")
-            idx += 1
 
         if source_app:
-            conditions.append(f"source_app = ${idx}")
+            conditions.append("source_app = ?")
             params.append(source_app)
-            idx += 1
 
         if since:
-            conditions.append(f"created_at >= ${idx}")
-            params.append(since)
-            idx += 1
+            conditions.append("created_at >= ?")
+            params.append(since.isoformat())
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         params.extend([limit, offset])
 
         rows = await self._pool.fetch(
-            f"""
-            SELECT id::text, subject, payload, source_app, created_at
-            FROM platform_events
-            {where}
-            ORDER BY created_at DESC
-            LIMIT ${idx} OFFSET ${idx + 1}
-            """,
+            f"""SELECT id, subject, payload, source_app, created_at
+                FROM platform_events
+                {where}
+                ORDER BY created_at DESC LIMIT ? OFFSET ?""",
             *params,
         )
         return [_row_to_event(r) for r in rows]
@@ -85,29 +74,30 @@ class EventService:
     async def count(self, subject_prefix: str = "", source_app: str = "") -> int:
         if self._pool is None:
             return 0
-        conditions = []
-        params: list = []
-        idx = 1
+        conditions: list[str] = []
+        params: list[Any] = []
         if subject_prefix:
-            conditions.append(f"subject LIKE ${idx}")
+            conditions.append("subject LIKE ?")
             params.append(f"{subject_prefix}%")
-            idx += 1
         if source_app:
-            conditions.append(f"source_app = ${idx}")
+            conditions.append("source_app = ?")
             params.append(source_app)
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         row = await self._pool.fetchrow(f"SELECT COUNT(*) AS cnt FROM platform_events {where}", *params)
         return row["cnt"] if row else 0
 
 
-def _row_to_event(row: asyncpg.Record) -> PlatformEvent:
+def _row_to_event(row: dict) -> PlatformEvent:
     payload_data = row["payload"]
     if isinstance(payload_data, str):
-        payload_data = json.loads(payload_data)
+        try:
+            payload_data = json.loads(payload_data)
+        except (json.JSONDecodeError, TypeError):
+            payload_data = {}
     return PlatformEvent(
-        id=row["id"],
+        id=str(row["id"]),
         subject=row["subject"],
         payload=payload_data,
-        source_app=row["source_app"],
-        created_at=row["created_at"],
+        source_app=row.get("source_app", "system"),
+        created_at=row.get("created_at"),
     )

@@ -30,12 +30,15 @@ from executor.flow_executor import FlowExecutor
 from executor.flow_loader import FlowLoader
 from executor.embedding_pipeline import init_pipeline, EmbeddingPipeline
 from api import notify_api, status_api
+from widgets import WidgetRegistry
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [arbor-core] %(levelname)s %(message)s",
 )
 logger = logging.getLogger("nervus.arbor")
+
+widget_registry = WidgetRegistry()
 
 
 @asynccontextmanager
@@ -44,14 +47,17 @@ async def lifespan(app: FastAPI):
     settings = Settings.from_env()
     app.state.settings = settings
 
-    await nats_client.connect(settings.nats_url)
-    await redis_client.connect(settings.redis_url)
-    await postgres_client.connect(settings.postgres_url)
+    await nats_client.connect()
+    await redis_client.connect()
+    await postgres_client.connect()
 
     app.state.config_service = ConfigService(settings.config_dir)
 
     app.state.app_registry = AppRegistry()
     await app.state.app_registry.init(postgres_client.pool)
+
+    widget_registry.init_all()
+    app.state.widget_registry = widget_registry
 
     models_config = str(Path(settings.config_dir) / "models.json")
     app.state.model_service = ModelService(settings.llm_url, models_config_path=models_config)
@@ -60,11 +66,10 @@ async def lifespan(app: FastAPI):
     await app.state.event_service.init(postgres_client.pool)
 
     app.state.knowledge_service = KnowledgeService()
-    await app.state.knowledge_service.init(postgres_client.pool)
     app.state.knowledge_service.set_model_service(app.state.model_service)
 
     model_svc = app.state.model_service
-    embedding_pipeline = init_pipeline(postgres_client.pool, model_svc)
+    embedding_pipeline = init_pipeline(model_svc)
     await embedding_pipeline.start()
     app.state.embedding_pipeline = embedding_pipeline
 
@@ -108,6 +113,31 @@ app.include_router(events_router, prefix="/events", tags=["Events"])
 app.include_router(knowledge_router, prefix="/platform/knowledge", tags=["Knowledge"])
 app.include_router(notify_api.router, prefix="/notify", tags=["Notify"])
 app.include_router(status_api.router, prefix="", tags=["Status"])
+
+# 卡片 Widget 路由
+widget_registry.mount_all(app)
+
+
+@app.get("/api/widgets", tags=["Widgets"])
+async def list_widgets(request: Request):
+    reg: WidgetRegistry = request.app.state.widget_registry
+    return {"widgets": reg.list()}
+
+
+@app.post("/api/widgets/dispatch", tags=["Widgets"])
+async def dispatch_widget(request: Request, body: dict):
+    reg: WidgetRegistry = request.app.state.widget_registry
+    widget_id = body.get("widget_id", "")
+    intent = body.get("intent", "")
+    params = body.get("params", {})
+    mode = body.get("mode", "read")
+    if mode == "read":
+        return reg.dispatch_read(widget_id, intent, params)
+    elif mode == "confirm":
+        return reg.dispatch_write(widget_id, intent, params)
+    elif mode == "execute":
+        return reg.dispatch_execute(widget_id, intent, params)
+    return {"error": f"unknown mode: {mode}"}
 
 
 @app.get("/flows", tags=["Flows"])

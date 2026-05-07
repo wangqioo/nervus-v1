@@ -1,9 +1,0 @@
-FROM nervus-python-base:latest
-WORKDIR /app
-COPY sdk/python /app/nervus-sdk
-COPY apps/video-transcriber/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && pip install --no-cache-dir /app/nervus-sdk -i https://pypi.tuna.tsinghua.edu.cn/simple
-COPY apps/video-transcriber/. .
-RUN mkdir -p /data
-EXPOSE 8009
-CMD ["python", "main.py"]

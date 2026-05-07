@@ -1,10 +1,11 @@
 """
 Embedding Pipeline — 异步向量化任务队列
-事件发生时自动对内容进行 embedding，写入 Memory Graph
+事件发生时自动对内容进行 embedding，写入 SQLite
 避免阻塞主流程，在后台低优先级处理
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -13,7 +14,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-import asyncpg
+from infra.db import db
 
 logger = logging.getLogger("nervus.arbor.embedding")
 
@@ -26,9 +27,9 @@ class EmbedTaskType(str, Enum):
 @dataclass
 class EmbedTask:
     task_type: EmbedTaskType
-    record_id: str          # UUID，对应数据库中的 id
+    record_id: str          # DB 中的行 id
     text: str               # 要 embedding 的文本
-    table: str              # life_events 或 knowledge_items
+    table: str              # knowledge_items 等
     priority: int = 5       # 1=最高，10=最低
     created_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -42,13 +43,15 @@ class EmbeddingPipeline:
     - 通过 ModelService 统一调用本地 embed 接口
     """
 
-    def __init__(self):
-        self.db_pool = db_pool
-        self._model_service = model_service  # 优先使用 ModelService
+    def __init__(self) -> None:
+        self._model_service: Any = None
         self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=1000)
         self._running = False
         self._processed = 0
         self._failed = 0
+
+    def set_model_service(self, svc: Any) -> None:
+        self._model_service = svc
 
     def enqueue(self, task: EmbedTask) -> bool:
         """将 embedding 任务加入队列（非阻塞）"""
@@ -75,7 +78,6 @@ class EmbeddingPipeline:
 
         while self._running:
             try:
-                # 等待任务（最多 5 秒超时，避免永久阻塞）
                 try:
                     _, task = await asyncio.wait_for(self._queue.get(), timeout=5.0)
                 except asyncio.TimeoutError:
@@ -94,7 +96,6 @@ class EmbeddingPipeline:
                 except Exception as e:
                     if retries < 3:
                         retry_counts[task_key] = retries + 1
-                        # 重新入队，优先级降低
                         retry_task = EmbedTask(
                             task_type=task.task_type,
                             record_id=task.record_id,
@@ -102,7 +103,7 @@ class EmbeddingPipeline:
                             table=task.table,
                             priority=min(task.priority + 2, 10),
                         )
-                        await asyncio.sleep(2 ** retries)  # 指数退避
+                        await asyncio.sleep(2 ** retries)
                         self.enqueue(retry_task)
                         logger.warning(f"Embedding 失败，第 {retries+1} 次重试: {task_key}: {e}")
                     else:
@@ -111,7 +112,6 @@ class EmbeddingPipeline:
                         logger.error(f"Embedding 最终失败，放弃: {task_key}: {e}")
 
                 self._queue.task_done()
-
                 await asyncio.sleep(0.5)
 
             except Exception as e:
@@ -122,23 +122,18 @@ class EmbeddingPipeline:
         if self._model_service is not None:
             return await self._model_service.embed(text[:2000])
 
-        import httpx
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                json={"model": "qwen3.5", "input": text[:2000]},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["data"][0]["embedding"]
+        raise RuntimeError(
+            "EmbeddingPipeline: _model_service is None. "
+            "Call init_pipeline(model_service=...) before use."
+        )
 
     async def _save_embedding(self, table: str, record_id: str, embedding: list[float]) -> None:
-        """将 embedding 写入数据库"""
-        embedding_str = f"[{','.join(str(x) for x in embedding)}]"
-        async with self.db_pool.acquire() as conn:
-            await conn.execute(
-                f"UPDATE {table} SET embedding = $1::vector WHERE id = $2",
-                embedding_str, record_id
-            )
+        """将 embedding 写入 SQLite"""
+        embedding_str = json.dumps(embedding)
+        await db.execute(
+            f"UPDATE {table} SET embedding = ? WHERE id = ?",
+            embedding_str, record_id,
+        )
 
     @property
     def stats(self) -> dict:
@@ -149,13 +144,17 @@ class EmbeddingPipeline:
         }
 
 
-# ── 全局实例（在 main.py 中初始化） ────────────────────────
+# ── 全局实例 ────────────────────────────────────────
 
 _pipeline: EmbeddingPipeline | None = None
 
 
-def init_pipeline(db_pool, model_service=None) -> EmbeddingPipeline:
+def init_pipeline(model_service=None) -> EmbeddingPipeline:
     global _pipeline
+    pipeline = EmbeddingPipeline()
+    if model_service:
+        pipeline.set_model_service(model_service)
+    _pipeline = pipeline
     return _pipeline
 
 
@@ -164,7 +163,6 @@ def get_pipeline() -> EmbeddingPipeline | None:
 
 
 def enqueue_life_event(record_id: str, text: str, priority: int = 5) -> None:
-    """便捷函数：将人生事件加入 embedding 队列"""
     if _pipeline:
         _pipeline.enqueue(EmbedTask(
             task_type=EmbedTaskType.LIFE_EVENT,
@@ -176,7 +174,6 @@ def enqueue_life_event(record_id: str, text: str, priority: int = 5) -> None:
 
 
 def enqueue_knowledge_item(record_id: str, text: str, priority: int = 5) -> None:
-    """便捷函数：将知识条目加入 embedding 队列"""
     if _pipeline:
         _pipeline.enqueue(EmbedTask(
             task_type=EmbedTaskType.KNOWLEDGE_ITEM,

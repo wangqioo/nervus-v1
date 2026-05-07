@@ -4,9 +4,6 @@ import json
 import logging
 from typing import Any
 
-import asyncpg
-import httpx
-
 from .schemas import AppManifest, AppStatus, AppStatusResponse, RegisteredApp
 
 logger = logging.getLogger("nervus.platform.apps")
@@ -14,10 +11,10 @@ logger = logging.getLogger("nervus.platform.apps")
 
 class AppRegistry:
     def __init__(self):
-        self._pool: asyncpg.Pool | None = None
+        self._pool: Any = None
         self._apps: dict[str, RegisteredApp] = {}
 
-    async def init(self, pool: asyncpg.Pool) -> None:
+    async def init(self, pool: Any) -> None:
         self._pool = pool
         await self._load_from_db()
         logger.info("App Platform loaded %s registered apps", len(self._apps))
@@ -29,7 +26,10 @@ class AppRegistry:
         for row in rows:
             manifest_data = row["manifest"]
             if isinstance(manifest_data, str):
-                manifest_data = json.loads(manifest_data)
+                try:
+                    manifest_data = json.loads(manifest_data)
+                except (json.JSONDecodeError, TypeError):
+                    continue
             manifest = self._parse_manifest(manifest_data, row["endpoint_url"])
             self._apps[manifest.id] = RegisteredApp(
                 id=manifest.id,
@@ -61,26 +61,22 @@ class AppRegistry:
         )
         self._apps[app.id] = app
         if self._pool:
+            import datetime
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
             await self._pool.execute(
-                """
-                INSERT INTO app_registry (app_id, name, version, description, manifest, endpoint_url, status, last_heartbeat)
-                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, NOW())
-                ON CONFLICT (app_id) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    version = EXCLUDED.version,
-                    description = EXCLUDED.description,
-                    manifest = EXCLUDED.manifest,
-                    endpoint_url = EXCLUDED.endpoint_url,
-                    status = EXCLUDED.status,
-                    last_heartbeat = NOW()
-                """,
-                app.id,
-                app.name,
-                app.version,
-                app.description,
-                app.manifest.model_dump_json(),
-                app.endpoint_url,
-                app.status.value,
+                """INSERT INTO app_registry (app_id, name, version, description, manifest, endpoint_url, status, last_heartbeat)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT (app_id) DO UPDATE SET
+                       name = EXCLUDED.name,
+                       version = EXCLUDED.version,
+                       description = EXCLUDED.description,
+                       manifest = EXCLUDED.manifest,
+                       endpoint_url = EXCLUDED.endpoint_url,
+                       status = EXCLUDED.status,
+                       last_heartbeat = EXCLUDED.last_heartbeat""",
+                app.id, app.name, app.version, app.description,
+                app.manifest.model_dump_json(), app.endpoint_url,
+                app.status.value, now,
             )
         return app
 
@@ -97,34 +93,37 @@ class AppRegistry:
         self._apps[app_id] = app.model_copy(update={"status": AppStatus.online})
         if self._pool:
             await self._pool.execute(
-                "UPDATE app_registry SET status = 'online', last_heartbeat = NOW() WHERE app_id = $1",
+                "UPDATE app_registry SET status = 'online', last_heartbeat = datetime('now') WHERE app_id = ?",
                 app_id,
             )
         return True
 
     async def mark_offline_stale(self, timeout_seconds: int = 120) -> int:
-        """将超时未心跳的 App 标为 offline，返回影响的数量。"""
         if self._pool is None:
             return 0
+        # SQLite: 标记所有 heartbeat 超时的 online app
         rows = await self._pool.fetch(
-            """
-            UPDATE app_registry
-            SET status = 'offline'
-            WHERE status = 'online'
-              AND last_heartbeat < NOW() - ($1 || ' seconds')::interval
-              AND app_id != 'nervus-system'
-            RETURNING app_id
-            """,
-            str(timeout_seconds),
+            """SELECT app_id FROM app_registry
+               WHERE status = 'online'
+                 AND last_heartbeat < datetime('now', ?)
+                 AND app_id != 'nervus-system'""",
+            f"-{timeout_seconds} seconds",
         )
         for row in rows:
             app = self._apps.get(row["app_id"])
             if app:
                 self._apps[row["app_id"]] = app.model_copy(update={"status": AppStatus.offline})
-            logger.info("marked %s as offline (heartbeat timeout)", row["app_id"])
-        return len(rows)
+            await self._pool.execute(
+                "UPDATE app_registry SET status = 'offline' WHERE app_id = ?",
+                row["app_id"],
+            )
+        n = len(rows)
+        if n:
+            logger.info("marked %s app(s) offline (heartbeat timeout)", n)
+        return n
 
     async def get_status(self, app_id: str) -> AppStatusResponse | None:
+        import httpx
         app = self.get_app(app_id)
         if app is None:
             return None
@@ -146,6 +145,7 @@ class AppRegistry:
             return AppStatusResponse(id=app.id, status=AppStatus.offline, health=health, state=state, error=str(exc))
 
     async def call_action(self, app_id: str, action_name: str, params: dict[str, Any]) -> dict[str, Any]:
+        import httpx
         app = self._apps.get(app_id)
         if not app:
             raise ValueError(f"App {app_id} is not registered")
@@ -155,6 +155,7 @@ class AppRegistry:
             return resp.json()
 
     async def send_intake(self, app_id: str, handler: str, event: dict[str, Any]) -> dict[str, Any]:
+        import httpx
         app = self._apps.get(app_id)
         if not app:
             raise ValueError(f"App {app_id} is not registered")
